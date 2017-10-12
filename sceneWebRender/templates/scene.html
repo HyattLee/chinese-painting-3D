@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Scene</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #fff;
+				font-family: Monospace;
+				font-size: 13px;
+				text-align: center;
+				font-weight: bold;
+				background-color: #000;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				width: 100%;
+				text-align: center;
+				padding: 5px;
+			}
+			a { color: skyblue; }
+		</style>
+	</head>
+	<body>
+		<div id="info">
+			<a href="#" target="_blank" rel="noopener">Chinese Painting</a> - Scene
+		</div>
+		<script src="/static/three.js/build/three.js"></script>
+		<script src="/static/three.js/examples/js/controls/TrackballControls.js"></script>
+		<script src="/static/three.js/examples/js/Detector.js"></script>
+		<script src="/static/three.js/examples/js/libs/stats.min.js"></script>
+		<script src='/static/three.js/examples/js/libs/dat.gui.min.js'></script>
+		<script src="/static/three.js/examples/js/loaders/OBJLoader.js"></script>
+		<script src="/static/three.js/examples/js/ShaderTerrain.js"></script>
+		<script src="/static/three.js/examples/js/SkyShader.js"></script>
+
+		<script>
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+			SIZE_ELEMENT = 50;
+			SIZE_HOUSE_HEIGHT = 200;
+			SIZE_GROUND_WIDTH = 100000;
+			SIZE_MOUNTAIN_HEIGHT = 5000;
+
+			var container, stats, manager;
+			var camera, scene, renderer;
+			var mesh, geometry;
+			var controls;
+			var sky, sunSphere, sunLight, pointLight, ambientLight;
+
+			var mixer;
+			var clock = new THREE.Clock();
+			var gui, shadowCameraHelper, shadowConfig = {
+				shadowCameraVisible: false,
+				shadowCameraNear: 750,
+				shadowCameraFar: 70000,
+				shadowCameraFov: 120,
+				shadowBias: 0.0001
+			};
+			var skyEffectController  = {
+				turbidity: 1,
+				rayleigh: 0.3,
+				mieCoefficient: 0.075,
+				mieDirectionalG: 0.5,
+				luminance: 0.70,
+				inclination: 0.43, // elevation / inclination
+				azimuth: 0.25, // Facing front,
+				sun: true
+			};
+
+			var fogConfig = {
+				ddensity: 0.00025,
+				current: 0.00025,
+			}
+
+			init();
+			animate();
+
+			function initSky() {
+				// Add Sky Mesh
+				sky = new THREE.Sky();
+				scene.add( sky.mesh );
+
+				// Add Sun Helper
+				sunSphere = new THREE.Mesh(
+					new THREE.SphereBufferGeometry( 10000, 16, 8 ),
+					new THREE.MeshBasicMaterial( { color: 0xffffff } )
+				);
+				sunSphere.position.y = - 700000;
+				sunSphere.visible = false;
+				scene.add( sunSphere );	
+
+				// Add light
+				ambientLight = new THREE.AmbientLight( 0x000000 );
+				scene.add( ambientLight );
+				sunLight = new THREE.SpotLight( 0xffffff, 0.5, 0, Math.PI/2 );
+				sunLight.castShadow = true;
+				sunLight.shadow = new THREE.LightShadow( new THREE.PerspectiveCamera( shadowConfig.shadowCameraFov, 1, shadowConfig.shadowCameraNear, shadowConfig.shadowCameraFar ) );
+				sunLight.shadow.bias = shadowConfig.shadowBias;
+				scene.add( sunLight );
+
+				//update
+				skyUpdated();			
+			}
+
+
+			function skyUpdated() {
+				var distance = 400000;
+				var uniforms = sky.uniforms;
+				uniforms.turbidity.value = 20*(0.25-Math.abs(skyEffectController.azimuth-0.25));//skyEffectController.turbidity;
+				uniforms.rayleigh.value = Math.abs(6*(0.25-skyEffectController.azimuth));//skyEffectController.rayleigh;
+				uniforms.luminance.value = skyEffectController.luminance;
+				uniforms.mieCoefficient.value = skyEffectController.mieCoefficient;
+				uniforms.mieDirectionalG.value = skyEffectController.mieDirectionalG;
+
+				var theta = Math.PI * ( skyEffectController.inclination - 0.5 );
+				var phi = 2 * Math.PI * ( skyEffectController.azimuth - 0.5 );
+
+				sunSphere.position.x = distance * Math.cos( phi );
+				sunSphere.position.y = 8*distance * Math.sin( phi ) * Math.sin( theta );
+				sunSphere.position.z = distance * Math.sin( phi ) * Math.cos( theta );
+
+				sunLight.position.x = distance/20 * Math.cos( phi );
+				sunLight.position.y = distance * Math.sin( phi ) * Math.sin( theta );
+				sunLight.position.z = distance/20 * Math.sin( phi ) * Math.cos( theta );
+				sunLight.intensity = skyEffectController.luminance;
+				ambientLight.intensity = 0.1+Math.abs(skyEffectController.azimuth-0.25);
+
+				sunSphere.visible = skyEffectController.sun;
+
+				sky.uniforms.sunPosition.value.copy( sunSphere.position );
+
+				scene.fog.density = fogConfig.current = (0.25-Math.abs(skyEffectController.azimuth-0.25))/5000
+			}
+
+			function createGUI() {
+				shadowCameraHelper = new THREE.CameraHelper( sunLight.shadow.camera );
+				shadowCameraHelper.visible = shadowConfig.shadowCameraVisible;
+				scene.add( shadowCameraHelper );
+
+				// GUI
+				gui = new dat.GUI( { width: 400 } );
+
+				// SHADOW
+				var shadowGUI = gui.addFolder( "Shadow" );
+    			shadowGUI.add( shadowConfig, 'shadowCameraVisible' ).onChange( function() {
+					shadowCameraHelper.visible = shadowConfig.shadowCameraVisible;
+				});
+				shadowGUI.add( shadowConfig, 'shadowCameraNear', 1, 1500 ).onChange( function() {
+					sunLight.shadow.camera.near = shadowConfig.shadowCameraNear;
+					sunLight.shadow.camera.updateProjectionMatrix();
+					shadowCameraHelper.update();
+				});
+				shadowGUI.add( shadowConfig, 'shadowCameraFar', 1001, 70000 ).onChange( function() {
+					sunLight.shadow.camera.far = shadowConfig.shadowCameraFar;
+					sunLight.shadow.camera.updateProjectionMatrix();
+					shadowCameraHelper.update();
+				});
+				shadowGUI.add( shadowConfig, 'shadowCameraFov', 1, 150 ).onChange( function() {
+					sunLight.shadow.camera.fov = shadowConfig.shadowCameraFov;
+					sunLight.shadow.camera.updateProjectionMatrix();
+					shadowCameraHelper.update();
+				});
+				shadowGUI.add( shadowConfig, 'shadowBias', -0.01, 0.1 ).onChange( function() {
+					sunLight.shadow.bias = shadowConfig.shadowBias;
+				});
+				shadowGUI.open();
+
+				//SKY
+				var skyGUI = gui.addFolder( "Sky" );
+    			skyGUI.add( skyEffectController, "turbidity", 1.0, 20.0, 0.1 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "rayleigh", 0.0, 4, 0.001 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "mieCoefficient", 0.0, 0.1, 0.001 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "mieDirectionalG", 0.0, 1, 0.001 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "luminance", 0.0, 2 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "inclination", 0, 1, 0.0001 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "azimuth", 0, 0.5, 0.0001 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "sun" ).onChange( skyUpdated );
+				skyGUI.open();
+
+				//
+				var skyGUI = gui.addFolder( "Fog" );
+    			skyGUI.add( fogConfig, "ddensity", 0, 0.0005, 0.00000001 ).onChange( function() {
+					scene.fog.density = fogConfig.current + fogConfig.ddensity; 
+				});
+				skyGUI.open();
+			}
+
+
+			function loadObjectMaterial(texturePath) {
+				var textureLoader = new THREE.TextureLoader();
+				var textureColor = textureLoader.load( texturePath );
+				textureColor.repeat.set( 1, 1 );
+				textureColor.wrapS = textureColor.wrapT = THREE.RepeatWrapping;
+				textureColor.format = THREE.RGBFormat;
+				return textureColor;
+			}
+
+			function createObject(objGroundPos, objVerticalPos, objPath, texturePath, objectTypeStandardSize) {
+				var onProgress = function ( xhr ) {
+					if ( xhr.lengthComputable ) {
+						var percentComplete = xhr.loaded / xhr.total * 100;
+						console.log( Math.round(percentComplete, 2) + '% downloaded' );
+					}
+				};
+				var onError = function ( xhr ) {
+				};
+				var loader = new THREE.OBJLoader( manager );
+				loader.load( objPath, function ( object ) {
+					if (texturePath!=null){
+						object.traverse( function ( child ) {
+							if ( child instanceof THREE.Mesh ) {
+								var tmpB = new THREE.Box3().setFromObject(child);
+								var tmpBH = tmpB.max.y-tmpB.min.y;
+								if (tmpBH>0.8*objectTypeStandardSize) {
+									child.castShadow = true;
+								}
+								if (tmpBH>0.1*objectTypeStandardSize) {
+									child.material.map = loadObjectMaterial(texturePath);
+								}
+							}
+						} );
+					}
+					var bbox = new THREE.Box3().setFromObject(object);
+					var tmpH = bbox.max.y - bbox.min.y; 
+					var scale = objectTypeStandardSize/tmpH;
+					object.position.set( objGroundPos[0], objVerticalPos, objGroundPos[1] );
+					object.scale.set(scale,scale,scale);
+					scene.add( object );
+				}, onProgress, onError );
+			}
+
+			function getImageData( image ) {
+			    var canvas = document.createElement( 'canvas' );
+			    canvas.width = image.width;
+			    canvas.height = image.height;
+			    var context = canvas.getContext( '2d' );
+			    context.drawImage( image, 0, 0 );
+			    return context.getImageData( 0, 0, image.width, image.height );
+			}
+
+			function buildTerrain(tex, texturePath) {
+			    var material = new THREE.MeshPhongMaterial({
+			        map: THREE.ImageUtils.loadTexture(texturePath)
+			    });
+			    // we use a plane to render our terrain
+			    var geometry = new THREE.PlaneGeometry(tex.image.width, tex.image.height, tex.image.width-1, tex.image.height-1);
+			    geometry.computeFaceNormals();
+			    geometry.computeVertexNormals();
+			    geometry.computeTangents();
+
+			    var pixelList = getImageData( tex.image ).data;
+			    for (var i = 0, l = geometry.vertices.length; i < l; i++) {
+			        geometry.vertices[i].z = (pixelList[i*4]+pixelList[i*4+1]+pixelList[i*4+2])/3;
+			    }
+			    // create a 3D object to add to the scene
+			    return new THREE.Mesh(geometry, material);
+			}
+
+			function initGround(heightmapPath, texturePath, mountainSize, groundSize) {
+				var tex = THREE.ImageUtils.loadTexture(heightmapPath, THREE.UVMapping, function() {
+					var terrain = buildTerrain( tex, texturePath );
+					terrain.position.set( 0, 0, 0 );
+					terrain.rotation.x = - Math.PI / 2;
+					terrain.scale.set( groundSize/tex.image.width, groundSize/tex.image.height, mountainSize/255);
+					terrain.receiveShadow = true;
+					terrain.castShadow = true;
+					scene.add( terrain );
+				} );
+			}
+
+			function initFog() {
+				//scene.fog = new THREE.Fog( 0, 1000, 10000 );
+				scene.fog = new THREE.FogExp2( 0xffffff, 0.0001 );
+			}
+
+			function initSceneAndCamera() {
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 100, 2000000 );
+				camera.position.set( 0, 2000, 5500 );
+				scene = new THREE.Scene();
+				controls = new THREE.TrackballControls( camera, renderer.domElement );
+				controls.target.set( 0, 120, 0 );
+				controls.rotateSpeed = 1.0;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+				controls.noZoom = false;
+				controls.noPan = false;
+				controls.staticMoving = true;
+				controls.dynamicDampingFactor = 0.15;
+				controls.keys = [ 65, 83, 68 ];
+				// STATS
+				stats = new Stats();
+				container.appendChild( stats.dom );
+			}
+
+			function createView() {
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+				// RENDERER
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+				//
+				renderer.shadowMap.enabled = true;
+				renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+				//
+				renderer.gammaInput = true;
+				renderer.gammaOutput = true;
+				// EVENTS
+				window.addEventListener( 'resize', onWindowResize, false );
+			}
+
+			function init() {
+				createView();
+				initSceneAndCamera();
+
+				initFog();
+				initSky();
+				initGround("/static/heightmap/2.jpg", "/static/heightmap/2.jpg", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
+				createGUI();
+				
+				//create obj
+				//createObject([-100, -50], 450, "/static/obj/1.obj", "/static/texture/1.png", SIZE_HOUSE_HEIGHT/4);
+			}
+
+			//
+			function onWindowResize( event ) {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				controls.handleResize();
+			}
+			//
+			function animate() {
+				requestAnimationFrame( animate );
+				stats.begin();
+				render();
+				stats.end();
+			}
+			function render() {
+				controls.update();
+				renderer.render( scene, camera );
+			}
+		</script>
+	</body>
+</html>
