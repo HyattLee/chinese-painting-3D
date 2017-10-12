@@ -36,13 +36,14 @@
 		<script src="/static/js/OBJLoader.js"></script>
 		<script src="/static/js/ShaderTerrain.js"></script>
 		<script src="/static/js/SkyShader.js"></script>
+		<script src="/static/js/WaterShader.js"></script>
 
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 			SIZE_ELEMENT = 50;
-			SIZE_HOUSE_HEIGHT = 200;
-			SIZE_GROUND_WIDTH = 500000;
-			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*15;
+			SIZE_GROUND_WIDTH = 100000;
+			SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
+			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
 			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/50;
 			SIZE_MOUNTAIN_HEIGHT_SCALE = 20;
 			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT*SIZE_MOUNTAIN_HEIGHT_SCALE*0.5
@@ -71,6 +72,16 @@
 				inclination: 0.43, // elevation / inclination
 				azimuth: 0.25, // Facing front,
 				sun: true
+			};
+
+			var waterParameters = {
+				width: SIZE_GROUND_WIDTH,
+				height: SIZE_GROUND_WIDTH,
+				widthSegments: SIZE_GROUND_WIDTH/8,
+				heightSegments: SIZE_GROUND_WIDTH/8,
+				depth: SIZE_GROUND_WIDTH/2,
+				param: 4,
+				filterparam: 1
 			};
 
 			var fogConfig = {
@@ -275,6 +286,29 @@
 				scene.fog = new THREE.FogExp2( 0xffffff, fogConfig.density );
 			}
 
+			function initWater() {
+				waterNormals = new THREE.TextureLoader().load( '/static/texture/waternormals.jpg' );
+				waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
+				water = new THREE.Water( renderer, camera, scene, {
+					textureWidth: SIZE_GROUND_WIDTH,
+					textureHeight: SIZE_GROUND_WIDTH,
+					waterNormals: waterNormals,
+					alpha: 	1.0,
+					sunDirection: sunLight.position.clone().normalize(),
+					sunColor: 0xffffff,
+					waterColor: 0xeeeeee,
+					distortionScale: 500.0,
+					fog: scene.fog != undefined
+				} );
+				var mirrorMesh = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( waterParameters.width, waterParameters.height ),
+					water.material
+				);
+				mirrorMesh.add( water );
+				mirrorMesh.rotation.x = - Math.PI * 0.5;
+				scene.add( mirrorMesh );
+			}
+
 			function initSceneAndCamera() {
 				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 100, 10*SIZE_GROUND_WIDTH );
 				camera.position.set( SIZE_GROUND_WIDTH/3, SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/1.5 );
@@ -322,6 +356,7 @@
 
 				initFog();
 				initSky();
+				initWater();
 				initGround("/static/heightmap/1.png", "/static/heightmap/1.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
 				createGUI();
@@ -341,6 +376,9 @@
 				stats.end();
 			}
 			function render() {
+				var time = performance.now() * 0.001;
+				water.material.uniforms.time.value += SIZE_GROUND_WIDTH/3000* 1.0 / 60.0;
+				water.render();
 				controls.update();
 				renderer.render( scene, camera );
 			}
