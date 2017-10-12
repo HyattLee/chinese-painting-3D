@@ -312,6 +312,10 @@
 				window.addEventListener( 'resize', onWindowResize, false );
 			}
 
+			function placeObjects() {
+				//createObject([-100, -50], 450, "/static/obj/1.obj", "/static/texture/1.png", SIZE_HOUSE_HEIGHT/4);
+			}
+
 			function init() {
 				createView();
 				initSceneAndCamera();
@@ -319,20 +323,17 @@
 				initFog();
 				initSky();
 				initGround("/static/heightmap/1.png", "/static/heightmap/1.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
+
 				createGUI();
 				
-				//create obj
-				//createObject([-100, -50], 450, "/static/obj/1.obj", "/static/texture/1.png", SIZE_HOUSE_HEIGHT/4);
+				placeObjects()
 			}
-
-			//
 			function onWindowResize( event ) {
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				controls.handleResize();
 			}
-			//
 			function animate() {
 				requestAnimationFrame( animate );
 				stats.begin();
