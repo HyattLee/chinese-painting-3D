@@ -26,17 +26,17 @@
 	</head>
 	<body>
 		<div id="info">
-			<a href="#" target="_blank" rel="noopener">Chinese Painting</a> - Scene
+			<a href="#" target="_blank" rel="noopener">Chinese Painting</a>
 		</div>
-		<script src="/static/js/three.js"></script>
-		<script src="/static/js/TrackballControls.js"></script>
-		<script src="/static/js/Detector.js"></script>
-		<script src="/static/js/stats.min.js"></script>
-		<script src='/static/js/dat.gui.min.js'></script>
-		<script src="/static/js/OBJLoader.js"></script>
-		<script src="/static/js/ShaderTerrain.js"></script>
-		<script src="/static/js/SkyShader.js"></script>
-		<script src="/static/js/WaterShader.js"></script>
+		<script src="/static/threejs/three.js"></script>
+		<script src="/static/threejs/TrackballControls.js"></script>
+		<script src="/static/threejs/Detector.js"></script>
+		<script src="/static/threejs/stats.min.js"></script>
+		<script src='/static/threejs/dat.gui.min.js'></script>
+		<script src="/static/threejs/OBJLoader.js"></script>
+		<script src="/static/threejs/ShaderTerrain.js"></script>
+		<script src="/static/threejs/SkyShader.js"></script>
+		<script src="/static/threejs/WaterShader.js"></script>
 
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
@@ -44,9 +44,11 @@
 			SIZE_GROUND_WIDTH = 100000;
 			SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
 			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
+			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
 			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/50;
 			SIZE_MOUNTAIN_HEIGHT_SCALE = 20;
-			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT*SIZE_MOUNTAIN_HEIGHT_SCALE*0.5
+			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT_SCALE*0
+			SIZE_WATER_LEVEL = 5;
 
 			var container, stats, manager;
 			var camera, scene, renderer;
@@ -59,8 +61,8 @@
 			var gui, shadowCameraHelper, shadowConfig = {
 				shadowCameraVisible: false,
 				shadowCameraNear: 750,
-				shadowCameraFar: SIZE_SUN_DISTANCE,
-				shadowCameraFov: 120,
+				shadowCameraFar: SIZE_SHADOW_SCOPE,
+				shadowCameraFov: 25,
 				shadowBias: 0.0001
 			};
 			var skyEffectController  = {
@@ -68,7 +70,7 @@
 				rayleigh: 0.3,
 				mieCoefficient: 0.075,
 				mieDirectionalG: 0.5,
-				luminance: 0.70,
+				luminance: 0.02,
 				inclination: 0.43, // elevation / inclination
 				azimuth: 0.25, // Facing front,
 				sun: true
@@ -85,7 +87,7 @@
 			};
 
 			var fogConfig = {
-				density: 0.00000
+				density: 0.000008
 			}
 
 			init();
@@ -163,7 +165,7 @@
 					sunLight.shadow.camera.updateProjectionMatrix();
 					shadowCameraHelper.update();
 				});
-				shadowGUI.add( shadowConfig, 'shadowCameraFar', 1001, 5*SIZE_GROUND_WIDTH ).onChange( function() {
+				shadowGUI.add( shadowConfig, 'shadowCameraFar', 1001, SIZE_SHADOW_SCOPE ).onChange( function() {
 					sunLight.shadow.camera.far = shadowConfig.shadowCameraFar;
 					sunLight.shadow.camera.updateProjectionMatrix();
 					shadowCameraHelper.update();
@@ -263,7 +265,7 @@
 
 			    var pixelList = getImageData( tex.image ).data;
 			    for (var i = 0, l = geometry.vertices.length; i < l; i++) {
-			        geometry.vertices[i].z = 255-(pixelList[i*4]+pixelList[i*4+1]+pixelList[i*4+2])/3;
+			        geometry.vertices[i].z = (pixelList[i*4]+pixelList[i*4+1]+pixelList[i*4+2])/3;
 			    }
 			    // create a 3D object to add to the scene
 			    return new THREE.Mesh(geometry, material);
@@ -306,12 +308,13 @@
 				);
 				mirrorMesh.add( water );
 				mirrorMesh.rotation.x = - Math.PI * 0.5;
+				mirrorMesh.position.y = SIZE_WATER_LEVEL;
 				scene.add( mirrorMesh );
 			}
 
 			function initSceneAndCamera() {
 				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 100, 10*SIZE_GROUND_WIDTH );
-				camera.position.set( SIZE_GROUND_WIDTH/3, SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/1.5 );
+				camera.position.set( SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/6, SIZE_GROUND_WIDTH );
 				scene = new THREE.Scene();
 				controls = new THREE.TrackballControls( camera, renderer.domElement );
 				controls.target.set( 0, 120, 0 );
@@ -357,7 +360,7 @@
 				initFog();
 				initSky();
 				initWater();
-				initGround("/static/heightmap/1.png", "/static/heightmap/1.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
+				initGround("/static/heightmap/1.png", "/static/texture/ground2.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
 				createGUI();
 				

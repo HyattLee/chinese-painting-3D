@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>    
+<meta charset="UTF-8">    
+<title>Chinese Painting</title>
+<link rel='stylesheet' href='/static/bootstrap/css/bootstrap.css'>
+<script src="/static/jquery/1.11.3/jquery.min.js"></script>
+<script src="/static/bootstrap/js/bootstrap.js"></script>
+</head>
+<body>
+  <canvas id="canvas" style="position:absolute; z-index:2;"></canvas>
+  <img id="backgroundImage" src="/static/painting/1.jpg" style="position:absolute; z-index:1;" height="700"><img>
+  <div class="btn-group" role="group" aria-label="..." style="position:absolute; z-index:3">
+    <button type="button" class="btn btn-default" onclick="newObject();">New</button>
+    <button type="button" class="btn btn-default" onclick="saveObject();">Save</button>
+    <button type="button" class="btn btn-default" id="submitBTN">Submit</button>
+  </div>
+</body>
+<script>
+        var pixelList = new Object();
+        var currentStroke = '#101010';
+        var canvas;
+
+        $("#submitBTN").click(function() {
+          $("#request-process-patent").html("正在提交数据，请勿关闭当前窗口...");
+          $.ajax({
+              type: "POST",
+              url: "/achieveSketch",
+              data: JSON.stringify(pixelList),
+              dataType: "json",
+              success: function (message) {
+                  if (message > 0) {
+                      alert("请求已提交！我们会尽快与您取得联系");
+                  }
+              },
+              error: function (message) {
+                  $("#request-process-patent").html("提交数据失败！");
+              }
+          });
+      });
+
+        function newObject() {
+          refreshCanvas();
+          var tmp = context.strokeStyle;
+          var R = parseInt(tmp.slice(1, 3));
+          var G = parseInt(tmp.slice(3, 5));
+          var B = parseInt(tmp.slice(5, 7));
+          R = R + 1;
+          G = G + 1;
+          B = B + 1;
+          currentStroke = "#"+R.toString()+G.toString()+B.toString();
+          context.strokeStyle = currentStroke;
+        }
+
+        function saveObject() {
+          getNonZeroPixel();
+          newObject();
+        }
+
+        function refreshCanvas() {
+          canvas = document.getElementById('canvas');
+          var bgImg = document.getElementById('backgroundImage');
+          if(canvas.getContext){        
+            context = canvas.getContext('2d');   
+          }
+          canvas.width = bgImg.width;
+          canvas.height = bgImg.height;
+          context.lineWidth = 3;    
+          context.strokeStyle = currentStroke;
+          context.fillStyle = 'rgba(0, 0, 0, 0)';  
+        }
+
+        function getNonZeroPixel() {
+          var tmpValue = new Array();
+          var pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+          for (var i=0; i<pixels.length; i+=4) {
+            if ((pixels[i+0]+pixels[i+1]+pixels[i+2])!=0) {
+              tmpValue.push([(i/4)%canvas.width, (i/4)/canvas.width])
+            }
+          }
+          pixelList[context.strokeStyle] = tmpValue;
+        }
+
+        refreshCanvas();
+        canvas.onmousedown = function(e){        
+          e.preventDefault();        
+          var x = e.clientX - canvas.offsetLeft;        
+          var y = e.clientY - canvas.offsetTop;        
+          context.moveTo(x,y);        
+          canvas.onmousemove = function(e){            
+            e.preventDefault();
+            if (e.clientX>canvas.width||e.clientY>canvas.height||e.clientX<0||e.clientY<0) {
+              canvas.onmousemove = null;
+            } else {
+              var x = e.clientX - canvas.offsetLeft;            
+              var y = e.clientY - canvas.offsetTop;    
+              context.lineTo(x,y);           
+              context.stroke();
+            }    
+          };        
+          canvas.onmouseup = function(e){            
+            canvas.onmousemove = null;
+          };    
+        };
+</script>
+</html>
