@@ -47,8 +47,8 @@
 			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
 			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/50;
 			SIZE_MOUNTAIN_HEIGHT_SCALE = 20;
-			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT_SCALE*0
-			SIZE_WATER_LEVEL = 5;
+			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT_SCALE*300;
+			SIZE_WATER_LEVEL = 0;
 
 			var container, stats, manager;
 			var camera, scene, renderer;
@@ -60,19 +60,19 @@
 			var clock = new THREE.Clock();
 			var gui, shadowCameraHelper, shadowConfig = {
 				shadowCameraVisible: false,
-				shadowCameraNear: 750,
+				shadowCameraNear: 488,
 				shadowCameraFar: SIZE_SHADOW_SCOPE,
-				shadowCameraFov: 25,
-				shadowBias: 0.0001
+				shadowCameraFov: 15,
+				shadowBias: 0.00042
 			};
 			var skyEffectController  = {
-				turbidity: 1,
-				rayleigh: 0.3,
-				mieCoefficient: 0.075,
-				mieDirectionalG: 0.5,
-				luminance: 0.02,
-				inclination: 0.43, // elevation / inclination
-				azimuth: 0.25, // Facing front,
+				turbidity: 20,
+				rayleigh: 4,
+				mieCoefficient: 0.1,
+				mieDirectionalG: 0,
+				luminance: 0.124,
+				inclination: 0.4828, // elevation / inclination
+				azimuth: 0.1723, // Facing front,
 				sun: true
 			};
 
@@ -87,7 +87,7 @@
 			};
 
 			var fogConfig = {
-				density: 0.000008
+				density: 0.00001
 			}
 
 			init();
@@ -295,10 +295,10 @@
 					textureWidth: SIZE_GROUND_WIDTH,
 					textureHeight: SIZE_GROUND_WIDTH,
 					waterNormals: waterNormals,
-					alpha: 	1.0,
+					alpha: 	0.6,
 					sunDirection: sunLight.position.clone().normalize(),
 					sunColor: 0xffffff,
-					waterColor: 0xeeeeee,
+					waterColor: 0xffffff,
 					distortionScale: 500.0,
 					fog: scene.fog != undefined
 				} );
@@ -345,6 +345,9 @@
 				//
 				renderer.gammaInput = true;
 				renderer.gammaOutput = true;
+				//
+				renderer.setPixelRatio( window.devicePixelRatio );
+ 
 				// EVENTS
 				window.addEventListener( 'resize', onWindowResize, false );
 			}
@@ -380,7 +383,7 @@
 			}
 			function render() {
 				var time = performance.now() * 0.001;
-				water.material.uniforms.time.value += SIZE_GROUND_WIDTH/3000* 1.0 / 60.0;
+				water.material.uniforms.time.value += SIZE_GROUND_WIDTH/3000* 1.0 / 200.0;
 				water.render();
 				controls.update();
 				renderer.render( scene, camera );
