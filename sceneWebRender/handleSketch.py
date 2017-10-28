@@ -1,5 +1,5 @@
 import math
-COUNT = 8
+COUNT = 20
 
 def parseBackground(mountainlList, size):
 	result = []
@@ -45,7 +45,7 @@ def parseBackground(mountainlList, size):
 					verticalRidge.append({	'h':float(meanYHorizontalReference-tmp3[1])/size['height'], 
 											'x0':float(tmp3[0])/size['width'], 
 											'y0':float(tmp3[1])/size['height'], 
-											'rl':float(radiusHorizontalReference)/(size['width']*2),
+											'rl':float(radiusHorizontalReference)/(size['width']*1.2),
 											'rh':float(10)/size['width']}) 
 				tmpCount = tmpCount + 1
 			verticalRidgeList.append(verticalRidge)
@@ -66,7 +66,7 @@ def parseBackground(mountainlList, size):
 					horizontalRidge.append({'h':float(meanYHorizontalReference-tmp3[1])/size['height'], 
 											'x0':float(tmp3[0])/size['width'], 
 											'y0':float(tmp2[0][1])/size['height'], 
-											'rl':float(radiusHorizontalReference)/(size['width']*2),
+											'rl':float(radiusHorizontalReference)/(size['width']*1.2),
 											'rh':float(10)/size['width']})
 				tmpCount = tmpCount + 1
 			horizontalRidgeList.append(horizontalRidge)

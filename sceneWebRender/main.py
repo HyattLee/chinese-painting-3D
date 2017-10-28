@@ -27,9 +27,9 @@ def achieveSketch():
 	for mountain in background:
 		HM.createMountain(mountain['x0'], mountain['y0'], mountain['rh'], mountain['rl'], mountain['h'])
 
-	HM.scaleHeightMap(0.9)
+	HM.scaleHeightMap(1)
 	HM.synthesizeHeightMap()
-	HM.gaussianSmooth(5)
+	HM.gaussianSmooth(10)
 
 	#HM.createTree(7, 1000, 1)
 	#HM.synthesizeTree()
