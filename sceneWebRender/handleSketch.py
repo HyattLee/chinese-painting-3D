@@ -1,8 +1,10 @@
 import math
 COUNT = 20
+SCALE_Y = 1 #TODO!
+SCALE_MAP_Y = 1
 
 def parseBackground(mountainlList, size):
-	result = []
+	result = {'mountain':[], 'size':[size['width'],size['height']*SCALE_MAP_Y]}
 	for mountain in mountainlList:
 		horizontalReference = []
 		verticalRidge = []
@@ -44,7 +46,7 @@ def parseBackground(mountainlList, size):
 				if tmpCount%tmp2Step==0:
 					verticalRidge.append({	'h':float(meanYHorizontalReference-tmp3[1])/size['height'], 
 											'x0':float(tmp3[0])/size['width'], 
-											'y0':float(tmp3[1])/size['height'], 
+											'y0':(float(tmp3[1])/size['height'])*SCALE_Y, 
 											'rl':float(radiusHorizontalReference)/(size['width']*1.2),
 											'rh':float(10)/size['width']}) 
 				tmpCount = tmpCount + 1
@@ -53,7 +55,7 @@ def parseBackground(mountainlList, size):
 		for verticalRidge in verticalRidgeList:
 			print 'verticalRidgeList:', len(verticalRidge)
 			for tmp in verticalRidge:
-				result.append(tmp)
+				result['mountain'].append(tmp)
 
 		horizontalRidgeList = []
 		for tmp in horizontalRidge:
@@ -65,7 +67,7 @@ def parseBackground(mountainlList, size):
 				if tmpCount%tmp2Step==0:
 					horizontalRidge.append({'h':float(meanYHorizontalReference-tmp3[1])/size['height'], 
 											'x0':float(tmp3[0])/size['width'], 
-											'y0':float(tmp2[0][1])/size['height'], 
+											'y0':(float(tmp2[0][1])/size['height'])*SCALE_Y, 
 											'rl':float(radiusHorizontalReference)/(size['width']*1.2),
 											'rh':float(10)/size['width']})
 				tmpCount = tmpCount + 1
@@ -74,6 +76,6 @@ def parseBackground(mountainlList, size):
 		for horizontalRidge in horizontalRidgeList:
 			print 'horizontalRidgeList:', len(horizontalRidge)
 			for tmp in horizontalRidge:
-				result.append(tmp)
+				result['mountain'].append(tmp)
 
 	return result

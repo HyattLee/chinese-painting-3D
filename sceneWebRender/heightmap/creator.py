@@ -1,5 +1,37 @@
 from PIL import Image, ImageOps, ImageFilter
 import random, copy
+import numba, numpy, math
+
+@numba.jit
+def accelerate_createMountains(matrix, sizeX, sizeY):
+	baseMatrix = numpy.zeros((sizeX, sizeY))
+	for mountain in mountainsDescription:
+		print 'create a mountain'
+		x0 = mountain['x0']*sizeX
+		y0 = mountain['y0']*sizeY
+		rl = mountain['rl']*sizeX
+		rh = mountain['rh']*sizeX
+		h = mountain['h']*sizeY
+
+		for x in range(int(x0-rl), int(x0+rl)):
+			for y in range(int(y0-rl), int(y0+rl)):
+				x = float(x)
+				y = float(y)
+				if x>=0 and x<=baseMatrix.shape[1] and y>=0 and y<=baseMatrix.shape[0]:
+					delta = math.sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))
+					h_tmp = 0
+					if delta>rh:
+						h_tmp = h - (((delta-rh)*h)/(rl-rh))*h
+					else:
+						h_tmp = h
+					if h_tmp>baseMatrix[int(x), int(y)]:
+						baseMatrix[int(x), int(y)] = h_tmp
+
+	for x in range(0, sizeX):
+		for y in range(0, sizeY):
+			matrix = matrix + baseMatrix[int(x), int(y)]
+			
+	return matrix
 
 class heightMap:
 	__noiseMap = []
@@ -13,11 +45,9 @@ class heightMap:
 	__randomMax = 0
 	__randomScale = 1
 
-	def __init__(self, baseImagePath, randomMax):
-		tmp = Image.open(baseImagePath).convert("L")
-		tmpPixel = tmp.load()
-		self.__sizeX = tmp.size[0]
-		self.__sizeY = tmp.size[1]
+	def __init__(self, size, randomMax):
+		self.__sizeX = int(size[0])
+		self.__sizeY = int(size[1])
 		self.__randomMax = randomMax
 		for x in range(0, self.__sizeX):
 			self.__heightMap.append([])
@@ -27,13 +57,12 @@ class heightMap:
 			self.__synthesizedMap.append([])
 			for y in range(0, self.__sizeY):
 				self.__heightMap[x].append(0)
-				self.__noiseMap[x].append(random.uniform(0, randomMax))
+				self.__noiseMap[x].append(0) #random.uniform(0, randomMax)
 				self.__planeMap[x].append(0)
 				self.__treeMap[x].append(0)
 				self.__synthesizedMap[x].append(0)
 
 		self.__image = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
-
 
 	#plane map:
 	def setCircleElement(self, x0, y0, r, h):
@@ -41,26 +70,6 @@ class heightMap:
 			for y in range(0, self.__sizeY):
 				if (x-x0)*(x-x0)+(y-y0)*(y-y0)<r*r:
 					self.__planeMap[x][y] = int(h)
-
-	#noise map
-	def scaleNoise(self, scaleRate):
-		self.__randomScale = scaleRate
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				self.__noiseMap[x][y] = self.__noiseMap[x][y]*scaleRate
-
-	#height map
-	def scaleHeightMap(self, scaleRate):
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				self.__heightMap[x][y] = self.__heightMap[x][y]*scaleRate
-
-	def addCircleElement(self, x0, y0, r, hc, heightmap0):
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				if (x-x0)*(x-x0)+(y-y0)*(y-y0)<r*r and hc>heightmap0[x][y]:
-					self.__heightMap[x][y] = self.__heightMap[x][y] + 1
-
 	#tree map
 	def createTree(self, intensity, topLine, rare):
 		count = 0
@@ -71,13 +80,39 @@ class heightMap:
 				count = count + 1
 
 	#height map advance
-	def createMountain(self, x0, y0, rh, rl, h):
-		heightmap0 = copy.deepcopy(self.__heightMap)
-		for tmpH in range(0, int(h*255)):
-			tmpR = (float(h-(float(tmpH)/255))/h)*(rl-rh)+rh
-			print tmpR*self.__sizeX
-			self.addCircleElement(x0*self.__sizeX, y0*self.__sizeY, tmpR*self.__sizeX, tmpH, heightmap0)
+	def scaleMountains(self, scaleRate):
+		for x in range(0, self.__sizeX):
+			for y in range(0, self.__sizeY):
+				self.__heightMap[x][y] = self.__heightMap[x][y]*scaleRate
 
+	def createMountains(self, mountainsDescription):
+		baseMatrix = numpy.zeros((self.__sizeX, self.__sizeY))
+		for mountain in mountainsDescription:
+			print 'create a mountain'
+			x0 = mountain['x0']*self.__sizeX
+			y0 = mountain['y0']*self.__sizeY
+			rl = mountain['rl']*self.__sizeX
+			rh = mountain['rh']*self.__sizeX
+			h = mountain['h']*self.__sizeY
+
+			for x in range(int(x0-rl), int(x0+rl)):
+				for y in range(int(y0-rl), int(y0+rl)):
+					x = float(x)
+					y = float(y)
+					if x>=0 and x<baseMatrix.shape[0] and y>=0 and y<baseMatrix.shape[1]:
+						delta = math.sqrt((x-x0)*(x-x0)+(y-y0)*(y-y0))
+						h_tmp = 0
+						if delta>rh:
+							h_tmp = h - (((delta-rh)*h)/(rl-rh))
+						else:
+							h_tmp = h
+						if h_tmp>baseMatrix[int(x), int(y)]:
+							baseMatrix[int(x), int(y)] = h_tmp
+
+		for x in range(0, self.__sizeX):
+			for y in range(0, self.__sizeY):
+				self.__heightMap[x][y] = self.__heightMap[x][y] + baseMatrix[int(x), int(y)]
+			
 	def createPlane(self, x0, y0, r):
 		self.setCircleElement(x0*self.__sizeX, y0*self.__sizeY, r*self.__sizeX, 1)
 

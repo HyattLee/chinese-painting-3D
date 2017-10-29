@@ -20,16 +20,13 @@ def achieveSketch():
 	for key in request.form:
 		data = json.loads(key)
 
-	background = handleSketch.parseBackground(data['pixel'], data['size'])
+	sceneDesc = handleSketch.parseBackground(data['pixel'], data['size'])
 	
-	HM = creator.heightMap("heightmap/input/ground2.png", 100)
-	HM.scaleNoise(0.7)
-	for mountain in background:
-		HM.createMountain(mountain['x0'], mountain['y0'], mountain['rh'], mountain['rl'], mountain['h'])
-
-	HM.scaleHeightMap(1)
+	HM = creator.heightMap(sceneDesc['size'], 100)
+	HM.createMountains(sceneDesc['mountain'])
+	HM.scaleMountains(0.75)
 	HM.synthesizeHeightMap()
-	HM.gaussianSmooth(10)
+	HM.gaussianSmooth(3)
 
 	#HM.createTree(7, 1000, 1)
 	#HM.synthesizeTree()
