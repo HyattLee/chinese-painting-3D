@@ -2,7 +2,7 @@
 from flask import Flask, render_template, jsonify, request
 import json
 import handleSketch
-from heightmap import creator
+from heightmap import creator, texture
 
 app = Flask(__name__)
 
@@ -22,18 +22,28 @@ def achieveSketch():
 
 	sceneDesc = handleSketch.parseBackground(data['pixel'], data['size'])
 	
-	HM = creator.heightMap(sceneDesc['size'], 100)
+	HM = creator.heightMap(sceneDesc['size'])
 	HM.createMountains(sceneDesc['mountain'])
-	HM.scaleMountains(0.75)
-	HM.synthesizeHeightMap()
-	HM.gaussianSmooth(3)
+	HM.adjustMountains(upperBound=200)
+	HM.saveMountainMap("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_mountain.png")
+	HM.synthesizeMountains()
+
+	HM.createPlanes(sceneDesc['plane'])
+	HM.synthesizePlanes()
+	HM.exportTerrainMap("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_terrain.png")
+
+	HM.smoothSynthesize(10)
+	#HM.createNoiseForMountains(100, 30)
+	#HM.smoothNoise(3.5)
+	#HM.synthesizeNoise()
 
 	#HM.createTree(7, 1000, 1)
 	#HM.synthesizeTree()
 
-	HM.saveInImage()
-	HM.saveAsHeightMap("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/heightmap/1.png")
-	HM.saveAsTexture("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/texture/ground2.png")
+	HM.saveSynthesizedMap("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/heightMap.png")
+	texture.generateTextureForTerrain("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_mountain.png",
+										"/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_terrain.png",
+										"/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/texture.png")
 	return render_template('painting.html'), 201
 
 if __name__ == '__main__':

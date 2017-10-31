@@ -47,7 +47,7 @@
 			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
 			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/50;
 			SIZE_MOUNTAIN_HEIGHT_SCALE = 20;
-			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT_SCALE*10;
+			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT_SCALE*100;
 			SIZE_WATER_LEVEL = 0;
 
 			var container, stats, manager;
@@ -69,8 +69,8 @@
 				turbidity: 20,
 				rayleigh: 4,
 				mieCoefficient: 0.1,
-				mieDirectionalG: 0,
-				luminance: 0.124,
+				mieDirectionalG: 0.5,
+				luminance: 1,
 				inclination: 0.4828, // elevation / inclination
 				azimuth: 0.1723, // Facing front,
 				sun: true
@@ -87,7 +87,7 @@
 			};
 
 			var fogConfig = {
-				density: 0.00001
+				density: 0
 			}
 
 			init();
@@ -124,8 +124,10 @@
 			function skyUpdated() {
 				var distance = SIZE_SUN_DISTANCE;
 				var uniforms = sky.uniforms;
-				uniforms.turbidity.value = 20*(0.25-Math.abs(skyEffectController.azimuth-0.25));//skyEffectController.turbidity;
-				uniforms.rayleigh.value = Math.abs(6*(0.25-skyEffectController.azimuth));//skyEffectController.rayleigh;
+				//uniforms.turbidity.value = 20*(0.25-Math.abs(skyEffectController.azimuth-0.25));//skyEffectController.turbidity;
+				//uniforms.rayleigh.value = Math.abs(6*(0.25-skyEffectController.azimuth));//skyEffectController.rayleigh;
+				uniforms.turbidity.value = skyEffectController.turbidity;
+				uniforms.rayleigh.value = skyEffectController.rayleigh;
 				uniforms.luminance.value = skyEffectController.luminance;
 				uniforms.mieCoefficient.value = skyEffectController.mieCoefficient;
 				uniforms.mieDirectionalG.value = skyEffectController.mieDirectionalG;
@@ -186,8 +188,8 @@
 				skyGUI.add( skyEffectController, "rayleigh", 0.0, 4, 0.001 ).onChange( skyUpdated );
 				skyGUI.add( skyEffectController, "mieCoefficient", 0.0, 0.1, 0.001 ).onChange( skyUpdated );
 				skyGUI.add( skyEffectController, "mieDirectionalG", 0.0, 1, 0.001 ).onChange( skyUpdated );
-				skyGUI.add( skyEffectController, "luminance", 0.0, 2 ).onChange( skyUpdated );
-				skyGUI.add( skyEffectController, "inclination", 0, 1, 0.0001 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "luminance", 0.0, 1 ).onChange( skyUpdated );
+				skyGUI.add( skyEffectController, "inclination", 0, 0.3, 0.0001 ).onChange( skyUpdated );
 				skyGUI.add( skyEffectController, "azimuth", 0, 0.5, 0.0001 ).onChange( skyUpdated );
 				skyGUI.add( skyEffectController, "sun" ).onChange( skyUpdated );
 				skyGUI.open();
@@ -363,7 +365,7 @@
 				initFog();
 				initSky();
 				initWater();
-				initGround("/static/heightmap/1.png", "/static/texture/ground2.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
+				initGround("/static/terrain/heightMap.png", "/static/terrain/texture.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
 				createGUI();
 				

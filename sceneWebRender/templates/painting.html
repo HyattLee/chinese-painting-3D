@@ -12,18 +12,20 @@
   <img id="backgroundImage" src="/static/painting/1.jpg" style="position:absolute; z-index:1;" height="700"><img>
   <div class="btn-group" role="group" aria-label="..." style="position:absolute; z-index:3">
     <button type="button" class="btn btn-default" onclick="newMountain();">New Mountain</button>
+    <button type="button" class="btn btn-default" onclick="newPlane();">New Plane</button>
     <button type="button" class="btn btn-default" onclick="newHorizontalReferenceStroke();">newHorizontalReferenceStroke</button>
     <button type="button" class="btn btn-default" onclick="newHorizontalRidgeStroke();">newHorizontalRidgeStroke</button>
     <button type="button" class="btn btn-default" onclick="newVerticalRidgeStroke();">newVerticalRidgeStroke</button>
-    <button type="button" class="btn btn-default" onclick="saveMountain();">Save</button>
+    <button type="button" class="btn btn-default" onclick="save();">Save</button>
     <button type="button" class="btn btn-default" id="submitBTN">Submit</button>
   </div>
 </body>
 <script>
         var pixelList = new Array();
         var currentStrokeStyle = '#000000';
-        var currentMountain;
+        var currentObject;
         var canvas;
+        var currentType;
 
         $("#submitBTN").click(function() {
           $("#request-process-patent").html("正在提交数据，请勿关闭当前窗口...");
@@ -45,10 +47,20 @@
 
         function newMountain() {
           refreshCanvas();
-          currentMountain = new Object();
-          currentMountain['horizontalReference'] = new Array();
-          currentMountain['horizontalRidge'] = new Array();
-          currentMountain['verticalRidge'] = new Array();
+          currentObject = new Object();
+          currentObject['horizontalReference'] = new Array();
+          currentObject['horizontalRidge'] = new Array();
+          currentObject['verticalRidge'] = new Array();
+          currentType = 'mountain';
+        }
+
+        function newPlane() {
+          refreshCanvas();
+          currentObject = new Object();
+          currentObject['horizontalReference'] = new Array();
+          currentObject['horizontalRidge'] = new Array();
+          currentObject['verticalRidge'] = new Array();
+          currentType = 'plane';
         }
 
         function newHorizontalReferenceStroke() {
@@ -96,14 +108,15 @@
           context.beginPath();
         }
 
-        function saveMountain() {
-          currentMountain['horizontalReference'] = filterPixel(getPixel('#FF0000'));
-          currentMountain['horizontalRidge'] = filterPixel(getPixel('#0000FF'));
-          currentMountain['verticalRidge'] = filterPixel(getPixel('#00FF00'));
-          if (currentMountain['horizontalReference'].length!=0 || 
-              currentMountain['horizontalRidge'].length!=0 || 
-              currentMountain['verticalRidge'].length!=0) {
-            pixelList.push(currentMountain);
+        function save() {
+          currentObject['horizontalReference'] = filterPixel(getPixel('#FF0000'));
+          currentObject['horizontalRidge'] = filterPixel(getPixel('#0000FF'));
+          currentObject['verticalRidge'] = filterPixel(getPixel('#00FF00'));
+          currentObject['type'] = currentType;
+          if (currentObject['horizontalReference'].length!=0 || 
+              currentObject['horizontalRidge'].length!=0 || 
+              currentObject['verticalRidge'].length!=0) {
+            pixelList.push(currentObject);
             console.warn(pixelList);
             newMountain();
           }
