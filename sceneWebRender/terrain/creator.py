@@ -148,7 +148,7 @@ class heightMap:
 				if self.__planeMap[x][y]==0:
 					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y] + self.__noiseMap[x][y]
 				else:
-					self.__synthesizedMap[x][y] = self.__planeMap[x][y]
+					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y]
 
 	def synthesizeMountains(self):
 		for x in range(0, self.__sizeX):

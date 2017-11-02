@@ -2,7 +2,7 @@
 from flask import Flask, render_template, jsonify, request
 import json
 import handleSketch
-from heightmap import creator, texture
+from terrain import creator, texture
 
 app = Flask(__name__)
 
@@ -33,9 +33,10 @@ def achieveSketch():
 	HM.exportTerrainMap("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_terrain.png")
 
 	HM.smoothSynthesize(10)
-	#HM.createNoiseForMountains(100, 30)
-	#HM.smoothNoise(3.5)
-	#HM.synthesizeNoise()
+	
+	HM.createNoiseForMountains(100, 30)
+	HM.smoothNoise(3.5)
+	HM.synthesizeNoise()
 
 	#HM.createTree(7, 1000, 1)
 	#HM.synthesizeTree()
