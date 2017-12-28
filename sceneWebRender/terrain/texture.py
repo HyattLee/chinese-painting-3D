@@ -28,7 +28,9 @@ def generateTextureForTerrain(terrainHeightMapPath, terrainTypePath, outputTextu
 
 	hmContour.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_contour.png")
 	hm = hmContour.filter(ImageFilter.GaussianBlur(radius=5))
+	hm.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_filter.png")
 	hm = ImageOps.invert(hm)
+	hm.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_invert.png")
 	hmData = hm.load()
 	for x in range(0, size[0]):
 		for y in range(0, size[1]):

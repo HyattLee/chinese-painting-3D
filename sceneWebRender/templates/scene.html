@@ -37,24 +37,27 @@
 		<script src="/static/threejs/ShaderTerrain.js"></script>
 		<script src="/static/threejs/SkyShader.js"></script>
 		<script src="/static/threejs/WaterShader.js"></script>
+		<script src="/static/cloud/CloudShader.js"></script>
+        <script src="/static/cloud/Cloud.js"></script>
 
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
-			SIZE_ELEMENT = 50;
-			SIZE_GROUND_WIDTH = 100000;
+			SIZE_ELEMENT = 1;
+			SIZE_GROUND_WIDTH = 100;
 			SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
 			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
 			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
-			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/50;
-			SIZE_MOUNTAIN_HEIGHT_SCALE = 20;
-			SIZE_MOUNTAIN_HEIGHT_OFFSET = SIZE_MOUNTAIN_HEIGHT_SCALE*100;
+			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/5;
+			SIZE_MOUNTAIN_HEIGHT_SCALE = SIZE_GROUND_WIDTH/50;
+			SIZE_MOUNTAIN_HEIGHT_OFFSET = 1;
 			SIZE_WATER_LEVEL = 0;
 
 			var container, stats, manager;
-			var camera, scene, renderer;
+			var camera, scene, renderer, clock;
 			var mesh, geometry;
 			var controls;
-			var sky, sunSphere, sunLight, pointLight, ambientLight;
+			var sky, water, sunSphere, sunLight, pointLight, ambientLight;
+			var clouds = [];
 
 			var mixer;
 			var clock = new THREE.Clock();
@@ -63,7 +66,7 @@
 				shadowCameraNear: 488,
 				shadowCameraFar: SIZE_SHADOW_SCOPE,
 				shadowCameraFov: 15,
-				shadowBias: 0.00042
+				shadowBias: 0.00332
 			};
 			var skyEffectController  = {
 				turbidity: 20,
@@ -87,11 +90,31 @@
 			};
 
 			var fogConfig = {
-				density: 0
+				density: 0.007
 			}
 
 			init();
 			animate();
+
+			function initCloud() {
+				var wireframeMat = new THREE.MeshBasicMaterial({
+					color : new THREE.Color(0x000000),
+					wireframe : true
+				});
+
+				for(var i = 0; i < 1; i++) {
+					var cloud = new THREE.Cloud();
+					var wireframe = new THREE.Mesh(cloud.geometry.clone(), wireframeMat.clone());
+					cloud.add(wireframe);
+					wireframe.visible = false;
+					cloud.position.set(-0.5*SIZE_GROUND_WIDTH+8*i+50,30,-0.5*SIZE_GROUND_WIDTH+20);
+					cloud.rotation.set((Math.random()-0.5)*Math.PI, (Math.random()-0.5)*Math.PI, (Math.random()-0.5)*Math.PI);
+					var scale = 50;
+					cloud.scale.set(scale, scale, scale);
+					scene.add(cloud);
+					clouds.push(cloud);
+				}
+			}
 
 			function initSky() {
 				// Add Sky Mesh
@@ -196,7 +219,7 @@
 
 				//FOG
 				var skyGUI = gui.addFolder( "Fog" );
-    			skyGUI.add( fogConfig, "density", 0, 0.000025, 0.000001 ).onChange( function() {
+    			skyGUI.add( fogConfig, "density", 0, 0.02, 0.001 ).onChange( function() {
 					scene.fog.density = fogConfig.density; 
 				});
 				skyGUI.open();
@@ -301,7 +324,7 @@
 					sunDirection: sunLight.position.clone().normalize(),
 					sunColor: 0xffffff,
 					waterColor: 0xffffff,
-					distortionScale: 500.0,
+					distortionScale: 50.0,
 					fog: scene.fog != undefined
 				} );
 				var mirrorMesh = new THREE.Mesh(
@@ -315,11 +338,11 @@
 			}
 
 			function initSceneAndCamera() {
-				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 100, 10*SIZE_GROUND_WIDTH );
+				clock = new THREE.Clock();
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000000 );
 				camera.position.set( SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/6, SIZE_GROUND_WIDTH );
 				scene = new THREE.Scene();
 				controls = new THREE.TrackballControls( camera, renderer.domElement );
-				controls.target.set( 0, 120, 0 );
 				controls.rotateSpeed = 1.0;
 				controls.zoomSpeed = 1.2;
 				controls.panSpeed = 0.8;
@@ -337,7 +360,7 @@
 				container = document.createElement( 'div' );
 				document.body.appendChild( container );
 				// RENDERER
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				container.appendChild( renderer.domElement );
@@ -362,13 +385,13 @@
 				createView();
 				initSceneAndCamera();
 
-				initFog();
+				//initCloud();
+				//initFog();
 				initSky();
-				initWater();
+				//initWater();
 				initGround("/static/terrain/heightMap.png", "/static/terrain/texture.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
 				createGUI();
-				
 				placeObjects();
 			}
 			function onWindowResize( event ) {
@@ -384,10 +407,19 @@
 				stats.end();
 			}
 			function render() {
+				var delta = clock.getDelta();
+				var t = clock.elapsedTime * 1.0;
+				for(var i = 0, n = clouds.length; i < n; i++) {
+					var cloud = clouds[i];
+					cloud.update(t);
+				}
+
 				var time = performance.now() * 0.001;
-				water.material.uniforms.time.value += SIZE_GROUND_WIDTH/3000* 1.0 / 200.0;
-				water.render();
-				controls.update();
+				if (water!=undefined) {
+					water.material.uniforms.time.value += SIZE_GROUND_WIDTH/3000* 1.0/ 10;
+					water.render();
+				}
+				controls.update(delta);
 				renderer.render( scene, camera );
 			}
 		</script>

@@ -33,7 +33,7 @@ def achieveSketch():
 	HM.exportTerrainMap("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_terrain.png")
 
 	HM.smoothSynthesize(10)
-	
+
 	HM.createNoiseForMountains(100, 30)
 	HM.smoothNoise(3.5)
 	HM.synthesizeNoise()
