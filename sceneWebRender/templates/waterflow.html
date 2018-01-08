@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js - water flow map</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background:#777;
+				padding:0;
+				margin:0;
+				font-weight: bold;
+				overflow:hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px;
+				width: 100%;
+				color: #ffffff;
+				padding: 5px;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+			}
+
+			a {
+				color: #ffffff;
+			}
+		</style>
+
+		<script src="/static/threejs/three.js"></script>
+		<script src="/static/threejs/OrbitControls.js"></script>
+		<script src="/static/threejs/Reflector.js"></script>
+		<script src="/static/threejs/Refractor.js"></script>
+		<script src="/static/threejs/Water2.js"></script>
+		<script src="/static/threejs/Detector.js"></script>
+		<script src="/static/threejs/dat.gui.min.js"></script>
+		<script src="/static/threejs/GPUComputationRenderer.js"></script>
+		<script src="/static/threejs/SimplexNoise.js"></script>
+
+	</head>
+	<body>
+		<script id="waternoiseheightmapFragmentShader" type="x-shader/x-fragment">
+			#include <common>
+			uniform float viscosityConstant;
+			#define deltaTime ( 1.0 / 60.0 )
+			#define GRAVITY_CONSTANT ( resolution.x * deltaTime * 3.0 )
+			void main()	{
+				vec2 cellSize = 1.0 / resolution.xy;
+				vec2 uv = gl_FragCoord.xy * cellSize;
+				vec4 noiseheightmapValue = texture2D( noiseheightmap, uv );
+				vec4 waterheightmapValue = texture2D( waterheightmap, uv );
+				// Get neighbours
+				vec4 north = texture2D( noiseheightmap, uv + vec2( 0.0, cellSize.y ) );
+				vec4 south = texture2D( noiseheightmap, uv + vec2( 0.0, - cellSize.y ) );
+				vec4 east = texture2D( noiseheightmap, uv + vec2( cellSize.x, 0.0 ) );
+				vec4 west = texture2D( noiseheightmap, uv + vec2( - cellSize.x, 0.0 ) );
+				float sump = north.x + south.x + east.x + west.x - 4.0 * noiseheightmapValue.x;
+				float accel = sump * (GRAVITY_CONSTANT);
+				// Dynamics
+				noiseheightmapValue.y += accel;
+				noiseheightmapValue.x += noiseheightmapValue.y * deltaTime;
+
+				gl_FragColor = noiseheightmapValue;
+			}
+		</script>
+
+		<script id="waterheightmapFragmentShader" type="x-shader/x-fragment">
+			#include <common>
+			void main()	{
+
+			}
+		</script>
+
+		<div id="container"></div>
+		<div id="info">
+			water flow map
+		</div>
+
+		<script>
+		SIZE_ELEMENT = 1;
+		SIZE_GROUND_WIDTH = 100;
+		SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
+		SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
+		SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
+		SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/5;
+		SIZE_MOUNTAIN_HEIGHT_SCALE = SIZE_GROUND_WIDTH/50;
+		SIZE_MOUNTAIN_HEIGHT_OFFSET = 1;
+		SIZE_WATER_LEVEL = 0;
+
+		if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+		var scene, camera, renderer;
+
+		var water, heightmapVariable;
+		WIDTH = 128;
+		BOUNDS = SIZE_GROUND_WIDTH;
+		var simplex = new SimplexNoise();
+		var gpuCompute;
+
+		function initFlowWater(flowMap, speed, initHeighMap) {
+			var waterGeometry = new THREE.PlaneBufferGeometry( SIZE_GROUND_WIDTH, SIZE_GROUND_WIDTH, WIDTH - 1, WIDTH - 1 );
+
+			var flowMap = new THREE.TextureLoader().load( flowMap );
+
+			var normalMap0 = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Normal.jpg' );
+
+			var normalMap1 = new THREE.TextureLoader().load( '/static/texture/Water_2_M_Normal.jpg' );
+
+			water = new THREE.Water( waterGeometry, {
+				scale: 2,
+				textureWidth: WIDTH,
+				textureHeight: WIDTH,
+				flowMap: flowMap,
+				flowSpeed: speed,
+				normalMap0: normalMap0,
+				normalMap1: normalMap1
+			} );
+
+			water.position.y = SIZE_WATER_LEVEL;
+			water.rotation.x = Math.PI * - 0.5;
+			scene.add( water );
+
+			// Create computation renderer
+			gpuCompute = new GPUComputationRenderer( WIDTH, WIDTH, renderer );
+
+			var waternoiseheightmap0 = gpuCompute.createTexture();
+			fillWaterNoiseTexture(waternoiseheightmap0);
+			waternoiseheightmapVariable = gpuCompute.addVariable( "noiseheightmap", document.getElementById( 'waternoiseheightmapFragmentShader' ).textContent, waternoiseheightmap0 );
+
+			var waterheightmap0 =  gpuCompute.createTexture();
+			fillWaterHeightTexture(waterheightmap0);
+			waterheightmapVariable = gpuCompute.addVariable( "waterheightmap", document.getElementById( 'waterheightmapFragmentShader' ).textContent, waterheightmap0 );
+
+
+			gpuCompute.setVariableDependencies( waternoiseheightmapVariable, [ waterheightmapVariable, waternoiseheightmapVariable ] );
+
+			waternoiseheightmapVariable.material.uniforms.time = { value: 0.0 };
+			// Check for completeness
+			var error = gpuCompute.init();
+			if ( error !== null ) {
+				console.error( error );
+			}
+		}
+
+		function updateFlowWater() {
+			gpuCompute.compute();
+			water.material.uniforms.heightmap.value = gpuCompute.getCurrentRenderTarget( waternoiseheightmapVariable ).texture;
+		}
+
+		function fillWaterTexture( texture ) {
+			var pixels = texture.image.data;
+			var p = 0;
+			for ( var j = 0; j < WIDTH; j++ ) {
+				for ( var i = 0; i < WIDTH; i++ ) {
+					var x = i * 128 / WIDTH;
+					var y = j * 128 / WIDTH;
+					pixels[ p + 0 ] = 0;
+					pixels[ p + 1 ] = 0;
+					pixels[ p + 2 ] = 0;
+					pixels[ p + 3 ] = 1;
+					p += 4;
+				}
+			}
+		}
+
+		function fillWaterNoiseTexture( texture ) { //randomly create texture on initHeighMap
+			var noiseMaxHeight = 1;
+			function noise( x, y ) {
+				var multR = noiseMaxHeight;
+				var mult = 0.025;
+				var r = 0;
+				for ( var i = 0; i < 15; i++ ) {
+					r += multR * simplex.noise( x * mult, y * mult );
+					multR *= 0.53 + 0.025 * i;
+					mult *= 1.25;
+				}
+				return r;
+			}
+			var pixels = texture.image.data;
+			var p = 0;
+			for ( var j = 0; j < WIDTH; j++ ) {
+				for ( var i = 0; i < WIDTH; i++ ) {
+					var x = i * 128 / WIDTH;
+					var y = j * 128 / WIDTH;
+					pixels[ p + 0 ] = noise( x, y );
+					pixels[ p + 1 ] = 0;
+					pixels[ p + 2 ] = 0;
+					pixels[ p + 3 ] = 1;
+					p += 4;
+				}
+			}
+		}
+
+		function fillWaterHeightTexture( texture ) { //randomly create texture on initHeighMap
+			var pixels = texture.image.data;
+			var p = 0;
+			for ( var j = 0; j < WIDTH; j++ ) {
+				for ( var i = 0; i < WIDTH; i++ ) {
+					var x = i * 128 / WIDTH;
+					var y = j * 128 / WIDTH;
+					var tmp = 0.6 * Math.sqrt(Math.pow((x-0.5*WIDTH),2)+Math.pow((y-0.5*WIDTH),2));
+					pixels[ p + 0 ] = tmp;
+					pixels[ p + 1 ] = 0;
+					pixels[ p + 2 ] = 0;
+					pixels[ p + 3 ] = 1;
+					p += 4;
+				}
+			}
+		}
+
+
+		function init() {
+
+			// scene
+
+			scene = new THREE.Scene();
+
+			// camera
+
+			camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000000 );
+			camera.position.set( 0, 25, 0 );
+			camera.lookAt( scene.position );
+
+			var sun = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
+			sun.position.set( 300, 400, 175 );
+			scene.add( sun );
+
+
+			// ground
+			var groundGeometry = new THREE.PlaneBufferGeometry( 10*SIZE_GROUND_WIDTH, 10*SIZE_GROUND_WIDTH);
+			var groundMaterial = new THREE.MeshBasicMaterial( { color: 0xcccccc } );
+			var ground = new THREE.Mesh( groundGeometry, groundMaterial );
+			ground.rotation.x = Math.PI * - 0.5;
+			ground.position.y = -1;
+			scene.add( ground );
+
+			var textureLoader = new THREE.TextureLoader();
+			textureLoader.load( '/static/texture/FloorsCheckerboard_S_Diffuse.jpg', function( map ) {
+				map.wrapS = THREE.RepeatWrapping;
+				map.wrapT = THREE.RepeatWrapping;
+				map.anisotropy = 16;
+				map.repeat.set( 4, 4 );
+				groundMaterial.map = map;
+				groundMaterial.needsUpdate = true;
+			} );
+
+			// renderer
+
+			renderer = new THREE.WebGLRenderer( { antialias: true } );
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setPixelRatio( window.devicePixelRatio );
+			document.body.appendChild( renderer.domElement );
+
+			//
+
+			controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+			//
+
+			window.addEventListener( 'resize', onResize, false );
+
+		}
+
+		function onResize() {
+
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+
+		}
+
+		function animate() {
+
+			requestAnimationFrame( animate );
+
+			render();
+
+		}
+
+		function render() {
+			updateFlowWater();
+			renderer.render( scene, camera );
+		}
+
+		init();
+		initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.3);
+		animate();
+
+	</script>
+
+</body>
+</html>

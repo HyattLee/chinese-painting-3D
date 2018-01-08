@@ -14,6 +14,10 @@ def scene():
 def painting():
 	return render_template('painting.html'), 201
 
+@app.route("/waterflow", methods=['GET'])
+def waterflow():
+	return render_template('waterflow.html'), 201
+
 @app.route("/achieveSketch", methods=['POST'])
 def achieveSketch():
 	data = None

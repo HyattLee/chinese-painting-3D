@@ -36,7 +36,13 @@
 		<script src="/static/threejs/OBJLoader.js"></script>
 		<script src="/static/threejs/ShaderTerrain.js"></script>
 		<script src="/static/threejs/SkyShader.js"></script>
-		<script src="/static/threejs/WaterShader.js"></script>
+		<!--script src="/static/threejs/WaterShader.js"></script-->
+
+		<script src="/static/threejs/Reflector.js"></script>
+		<script src="/static/threejs/Refractor.js"></script>
+		<script src="/static/threejs/Water2.js"></script>
+
+
 		<script src="/static/cloud/CloudShader.js"></script>
         <script src="/static/cloud/Cloud.js"></script>
 
@@ -313,7 +319,7 @@
 				scene.fog = new THREE.FogExp2( 0xffffff, fogConfig.density );
 			}
 
-			function initWater() {
+			/*function initWater() {
 				waterNormals = new THREE.TextureLoader().load( '/static/texture/waternormals.jpg' );
 				waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
 				water = new THREE.Water( renderer, camera, scene, {
@@ -335,6 +341,31 @@
 				mirrorMesh.rotation.x = - Math.PI * 0.5;
 				mirrorMesh.position.y = SIZE_WATER_LEVEL;
 				scene.add( mirrorMesh );
+			}*/
+
+			function initFlowWater() {
+				var waterGeometry = new THREE.PlaneBufferGeometry( SIZE_GROUND_WIDTH, SIZE_GROUND_WIDTH );
+
+				var flowMap = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Flow.jpg' );
+
+				var normalMap0 = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Normal.jpg' );
+
+				var normalMap1 = new THREE.TextureLoader().load( '/static/texture/Water_2_M_Normal.jpg' );
+
+				water = new THREE.Water( waterGeometry, {
+					scale: 2,
+					textureWidth: 1024,
+					textureHeight: 1024,
+					flowMap: flowMap,
+					flowSpeed: 0.1,
+					color: 0xffffff,
+					normalMap0: normalMap0,
+					normalMap1: normalMap1
+				} );
+
+				water.position.y = SIZE_WATER_LEVEL;
+				water.rotation.x = Math.PI * - 0.5;
+				scene.add( water );
 			}
 
 			function initSceneAndCamera() {
@@ -343,7 +374,7 @@
 				camera.position.set( SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/6, SIZE_GROUND_WIDTH );
 				scene = new THREE.Scene();
 				controls = new THREE.TrackballControls( camera, renderer.domElement );
-				controls.rotateSpeed = 1.0;
+				controls.rotateSpeed = 5.0;
 				controls.zoomSpeed = 1.2;
 				controls.panSpeed = 0.8;
 				controls.noZoom = false;
@@ -389,10 +420,11 @@
 				//initFog();
 				initSky();
 				//initWater();
+				initFlowWater();
 				initGround("/static/terrain/heightMap.png", "/static/terrain/texture.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
-				createGUI();
-				placeObjects();
+				//createGUI();
+				//placeObjects();
 			}
 			function onWindowResize( event ) {
 				camera.aspect = window.innerWidth / window.innerHeight;
@@ -409,16 +441,16 @@
 			function render() {
 				var delta = clock.getDelta();
 				var t = clock.elapsedTime * 1.0;
-				for(var i = 0, n = clouds.length; i < n; i++) {
+				/*for(var i = 0, n = clouds.length; i < n; i++) {
 					var cloud = clouds[i];
 					cloud.update(t);
-				}
+				}*/
 
-				var time = performance.now() * 0.001;
+				/*var time = performance.now() * 0.001;
 				if (water!=undefined) {
 					water.material.uniforms.time.value += SIZE_GROUND_WIDTH/3000* 1.0/ 10;
 					water.render();
-				}
+				}*/
 				controls.update(delta);
 				renderer.render( scene, camera );
 			}
