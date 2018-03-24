@@ -1,5 +1,15 @@
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
+
+def generateBlankTexture(HMpath, Tpath):
+	hm = Image.open(HMpath)
+	#hm = ImageOps.invert(hm)
+	colorTData = hm.load()
+	for x in range(0, hm.size[0]):
+		for y in range(0, hm.size[1]):
+			colorTData[x, y] = 255
+	hm.save(Tpath)
+
 def generateTextureForTerrain(terrainHeightMapPath, terrainTypePath, outputTexturePath):
 	hm = Image.open(terrainHeightMapPath)
 	tim = Image.open(terrainTypePath)
@@ -24,13 +34,13 @@ def generateTextureForTerrain(terrainHeightMapPath, terrainTypePath, outputTextu
 			if colorTData[x, y][0]==100:
 				colorTData[x, y] = (194,216,213)
 
-	colorT.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_color.png")
+	colorT.save("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_color.png")
 
-	hmContour.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_contour.png")
+	hmContour.save("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_contour.png")
 	hm = hmContour.filter(ImageFilter.GaussianBlur(radius=5))
-	hm.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_filter.png")
+	hm.save("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_filter.png")
 	hm = ImageOps.invert(hm)
-	hm.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_invert.png")
+	hm.save("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_invert.png")
 	hmData = hm.load()
 	for x in range(0, size[0]):
 		for y in range(0, size[1]):
@@ -38,7 +48,7 @@ def generateTextureForTerrain(terrainHeightMapPath, terrainTypePath, outputTextu
 
 	hm = hm.convert("RGB")
 	hmData = hm.load()
-	hmContour.save("/home/kakaiu/ThreeChinesePainting/sceneWebRender/static/terrain/tmp_black.png")
+	hmContour.save("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_black.png")
 
 	colorRate = 0.9
 	for x in range(0, size[0]):
@@ -52,4 +62,5 @@ def generateTextureForTerrain(terrainHeightMapPath, terrainTypePath, outputTextu
 
 	hm = hm.filter(ImageFilter.GaussianBlur(radius=5))		
 
-	hm.save(outputTexturePath)
+	generateBlankTexture(terrainHeightMapPath, outputTexturePath)
+	#hm.save(outputTexturePath)

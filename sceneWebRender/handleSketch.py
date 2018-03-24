@@ -2,7 +2,7 @@ import math
 COUNT = 20
 
 def parseBackground(objectList, size):
-	result = {'mountain':[], 'size':[size['width'],size['height']], 'plane':[]}
+	result = {'mountain':[], 'size':[size['width'],size['height']], 'plane':[]}##
 	for obj in objectList:
 		horizontalReferenceTMP = []
 		verticalRidgeTMP = []

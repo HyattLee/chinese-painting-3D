@@ -81,7 +81,8 @@
 			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
 			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/5;
 			SIZE_MOUNTAIN_HEIGHT_SCALE = SIZE_GROUND_WIDTH/50;
-			SIZE_WATER_LEVEL = 1;
+			SIZE_MOUNTAIN_HEIGHT_OFFSET = 1;
+			SIZE_WATER_LEVEL = 0;
 			WIDTH = 128;
 			BOUNDS = SIZE_GROUND_WIDTH;
 			//
@@ -109,14 +110,13 @@
 				mieDirectionalG: 0.5,
 				luminance: 1,
 				inclination: 0.4828, // elevation / inclination
-				azimuth: 0.084,//0.1723, // Facing front,
+				azimuth: 0.1723, // Facing front,
 				sun: true
 			};
 			var fogConfig = {
-				density: 0//0.01
-			};
+				density: 0.01
+			}
 			//
-			var terrainForWaterCompute;
 
 			function initFlowWater(flowMap, speed, sizeX, sizeY) {
 				var waterGeometry = new THREE.PlaneBufferGeometry( sizeX, sizeY, WIDTH - 1, WIDTH - 1 );
@@ -279,13 +279,13 @@
 				var theta = Math.PI * ( skyEffectController.inclination - 0.5 );
 				var phi = 2 * Math.PI * ( skyEffectController.azimuth - 0.5 );
 
-				sunSphere.position.x = -distance * Math.cos( phi );
+				sunSphere.position.x = distance * Math.cos( phi );
 				sunSphere.position.y = 8*distance * Math.sin( phi ) * Math.sin( theta );
-				sunSphere.position.z = -distance * Math.sin( phi ) * Math.cos( theta );
+				sunSphere.position.z = distance * Math.sin( phi ) * Math.cos( theta );
 
-				sunLight.position.x = -distance/20 * Math.cos( phi );
+				sunLight.position.x = distance/20 * Math.cos( phi );
 				sunLight.position.y = distance * Math.sin( phi ) * Math.sin( theta );
-				sunLight.position.z = -distance/20 * Math.sin( phi ) * Math.cos( theta );
+				sunLight.position.z = distance/20 * Math.sin( phi ) * Math.cos( theta );
 				sunLight.intensity = skyEffectController.luminance;
 				ambientLight.intensity = 0.1+Math.abs(skyEffectController.azimuth-0.25);
 
@@ -399,59 +399,7 @@
 			    return context.getImageData( 0, 0, image.width, image.height );
 			}
 
-			function objCount(o){
-                var t = typeof o;
-                if(t == 'string'){
-                        return o.length;
-                }else if(t == 'object'){
-                        var n = 0;
-                        for(var i in o){
-                                n++;
-                        }
-                        return n;
-                }
-                return false;
-        	}
-
-        	function addTestDirectionIndicator(x,y,z, toX,toY,toZ) {
-			    var lPositions = new Float32Array( 6 );
-			    var vertex = new THREE.Vector3();
-			    vertex.x = 0;
-			    vertex.y = 0;
-			    vertex.z = 0; 
-			    vertex.toArray( lPositions, 0 );
-
-			    vertex.x = toX*2;
-			    vertex.y = toY*2;
-			    vertex.z = toZ*2; 
-			    vertex.toArray( lPositions, 3 );
-
-			    var lGeometry = new THREE.BufferGeometry();
-			    lGeometry.addAttribute( 'position', new THREE.BufferAttribute( lPositions, 3 ) );
-
-			    var lMaterial = new THREE.LineBasicMaterial( {
-			        color: 0x00ff00,
-			        linewidth: 1
-			    } );
-
-			    var lineMesh = new THREE.LineSegments( lGeometry, lMaterial );
-			    lineMesh.position.x = x;
-			    lineMesh.position.y = y;
-			    lineMesh.position.z = z;
-			    scene.add( lineMesh );
-			}
-
-        	function addTestPosIndicator(x, y, z){
-        		var geometry = new THREE.BoxBufferGeometry( 0.2, 0.2, 0.2 );
-				var material = new THREE.MeshBasicMaterial( {color: 0x0000ff} );
-				var cube = new THREE.Mesh( geometry, material );
-				cube.position.x = x;
-				cube.position.y = y;
-				cube.position.z = z;
-				scene.add( cube );
-        	}
-
-			function buildTerrain(tex, texturePath, mountainSize, groundSize) {
+			function buildTerrain(tex, texturePath) {
 			    var material = new THREE.MeshLambertMaterial({
 			        map: THREE.ImageUtils.loadTexture(texturePath)
 			    });
@@ -460,93 +408,22 @@
 			    for (var i = 0, l = geometry.vertices.length; i < l; i++) {
 			        geometry.vertices[i].z = (pixelList[i*4]+pixelList[i*4+1]+pixelList[i*4+2])/3;
 			    }
-
-			    geometry.scale(groundSize/tex.image.width, groundSize/tex.image.width, SIZE_MOUNTAIN_HEIGHT_SCALE*mountainSize/255);
-
 			    geometry.computeFaceNormals();
 			    geometry.computeVertexNormals();
 			    geometry.computeTangents();
-
-			    var testcount = 0;
-			    
-			    var terrainForWaterComputeTmp = new Object();
-			    terrainForWaterCompute = new Object();
-
-			    for (var i=0; i<geometry.faces.length; i++) {
-					pos_a_x = Math.round(geometry.vertices[geometry.faces[i]['a']]['x']);
-					pos_a_y = Math.round(geometry.vertices[geometry.faces[i]['a']]['z']);
-					pos_a_z = Math.round(-geometry.vertices[geometry.faces[i]['a']]['y']);
-
-					pos_b_x = Math.round(geometry.vertices[geometry.faces[i]['b']]['x']);
-					pos_b_y = Math.round(geometry.vertices[geometry.faces[i]['b']]['z']);
-					pos_b_z = Math.round(-geometry.vertices[geometry.faces[i]['b']]['y']);
-
-					pos_c_x = Math.round(geometry.vertices[geometry.faces[i]['c']]['x']);
-					pos_c_y = Math.round(geometry.vertices[geometry.faces[i]['c']]['z']);
-					pos_c_z = Math.round(-geometry.vertices[geometry.faces[i]['c']]['y']);
-
-					dir_x = geometry.faces[i]['normal']['x'];
-					dir_y = geometry.faces[i]['normal']['z'];
-					dir_z = -geometry.faces[i]['normal']['y'];
-
-					//addTestPosIndicator(pos_a_x,pos_a_y,pos_a_z);
-					//addTestDirectionIndicator(pos_a_x,pos_a_y,pos_a_z, dir_x,dir_y,dir_z);
-					var id = pos_a_x.toString()+'/'+pos_a_y.toString()+'/'+pos_a_z.toString();
-					if (terrainForWaterComputeTmp[id]==undefined) {
-						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_a_y, [pos_a_x, pos_a_y, pos_a_z]]];
-					} else {
-						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_a_y, [pos_a_x, pos_a_y, pos_a_z]]);
-					}
-
-					//addTestPosIndicator(pos_b_x,pos_b_y,pos_b_z);
-					//addTestDirectionIndicator(pos_b_x,pos_b_y,pos_b_z, dir_x,dir_y,dir_z);
-					var id = pos_b_x.toString()+'/'+pos_b_y.toString()+'/'+pos_b_z.toString();
-					if (terrainForWaterComputeTmp[id]==undefined) {
-						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_b_y, [pos_b_x, pos_b_y, pos_b_z]]];
-					} else {
-						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_b_y, [pos_b_x, pos_b_y, pos_b_z]]);
-					}
-
-					//addTestPosIndicator(pos_c_x,pos_c_y,pos_c_z);
-					//addTestDirectionIndicator(pos_c_x,pos_c_y,pos_c_z, dir_x,dir_y,dir_z);
-					var id = pos_c_x.toString()+'/'+pos_c_y.toString()+'/'+pos_c_z.toString();
-					if (terrainForWaterComputeTmp[id]==undefined) {
-						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_c_y, [pos_c_x, pos_c_y, pos_c_z]]];
-					} else {
-						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_c_y, [pos_c_x, pos_c_y, pos_c_z]]);
-					}
-			    }
-
-			    for (var key in terrainForWaterComputeTmp) {
-			    	var tmp = terrainForWaterComputeTmp[key];
-			    	var s_dir_x = 0;
-			    	var s_dir_y = 0;
-			    	var s_dir_z = 0;
-			    	for (var i=0; i<tmp.length; i++) {
-			    		s_dir_x = s_dir_x + tmp[i][0][0];
-			    		s_dir_y = s_dir_y + tmp[i][0][1];
-			    		s_dir_z = s_dir_z + tmp[i][0][2];
-			    	}
-			    	terrainForWaterCompute[key] = [[s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length], tmp[0][1]];
-
-			    	//addTestPosIndicator(tmp[0][2][0],tmp[0][2][1],tmp[0][2][2]);
-					//addTestDirectionIndicator(tmp[0][2][0],tmp[0][2][1],tmp[0][2][2], s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length);
-
-			    }
-			    
+			    console.warn(geometry.faces);
 			    return new THREE.Mesh(geometry, material);
 			}
 
 			function initTerrain(heightmapPath, texturePath, mountainSize, groundSize) {
 				var tex = THREE.ImageUtils.loadTexture(heightmapPath, THREE.UVMapping, function() {
-					var terrain = buildTerrain( tex, texturePath, mountainSize, groundSize );
-					terrain.position.set( 0, 0, 0 );
+					var terrain = buildTerrain( tex, texturePath );
+					terrain.position.set( 0, -SIZE_MOUNTAIN_HEIGHT_OFFSET, 0 );
 					terrain.rotation.x = - Math.PI / 2;
-					terrain.scale.set( 1, 1, 1 );
+					terrain.scale.set( groundSize/tex.image.width, groundSize/tex.image.width, SIZE_MOUNTAIN_HEIGHT_SCALE*mountainSize/255);
 					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, groundSize, groundSize*tex.image.height/tex.image.width);
 					terrain.receiveShadow = true;
 					terrain.castShadow = true;
-					terrain.name = "terrain";
 					scene.add( terrain );
 				} );
 			}
@@ -560,8 +437,7 @@
 				clock = new THREE.Clock();
 				simplex = new SimplexNoise();
 				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000000 );
-				//camera.position.set( SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/6, SIZE_GROUND_WIDTH );
-				camera.position.set( 0, SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH );
+				camera.position.set( SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH/6, SIZE_GROUND_WIDTH );
 				scene = new THREE.Scene();
 				controls = new THREE.TrackballControls( camera, renderer.domElement );
 				controls.rotateSpeed = 15.0;
@@ -608,7 +484,6 @@
 				render();
 				stats.end();
 			}
-
 			function render() {
 				var t = clock.elapsedTime * 1.0;
 				/*for(var i = 0, n = clouds.length; i < n; i++) {
@@ -616,7 +491,6 @@
 					cloud.update(t);
 				}*/
 				updateFlowWater();
-
 				controls.update();
 				renderer.render( scene, camera );
 			}

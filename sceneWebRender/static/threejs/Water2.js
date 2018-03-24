@@ -24,6 +24,7 @@ THREE.Water = function ( geometry, options ) {
 	var flowDirection = options.flowDirection || new THREE.Vector2( 1, 0 );
 	var flowSpeed = options.flowSpeed || 0.03;
 	var reflectivity = options.reflectivity || 0.02;
+	var alpha = options.alpha || 1;
 	var scale = options.scale || 1;
 	var shader = options.shader || THREE.Water.WaterShader;
 
@@ -76,7 +77,8 @@ THREE.Water = function ( geometry, options ) {
 			THREE.ShaderLib[ 'phong' ].uniforms,
 			shader.uniforms,
 			{
-				heightmap: { value: null }
+				heightmap: { value: null }, 
+				alpha: {value: null}
 			},
 			THREE.Water.WaterShader.uniforms
 		] ),
@@ -115,6 +117,7 @@ THREE.Water = function ( geometry, options ) {
 	// water
 	this.material.uniforms.color.value = color;
 	this.material.uniforms.reflectivity.value = reflectivity;
+	this.material.uniforms.alpha.value = alpha;
 	this.material.uniforms.textureMatrix.value = textureMatrix;
 
 	// inital values
@@ -237,6 +240,8 @@ THREE.Water.WaterShader = {
 	},
 
 	vertexShader: 
+		[
+		THREE.ShaderChunk[ 'fog_pars_vertex' ],
 		`uniform sampler2D heightmap;
 		#define PHONG
 		varying vec3 vViewPosition;
@@ -303,10 +308,13 @@ THREE.Water.WaterShader = {
 			vCoord = textureMatrix * vec4( position, 1.0 );
 			vUv = uv;
 			vToEye = cameraPosition - worldPosition.xyz;
-		}`
-	,
+		`, 
+		THREE.ShaderChunk[ 'fog_vertex' ],
+		'}'
+		].join( '\n' ),
 
 	fragmentShader: [
+		'#include <common>',
 		'#include <fog_pars_fragment>',
 
 		'uniform sampler2D tReflectionMap;',
@@ -322,6 +330,7 @@ THREE.Water.WaterShader = {
 
 		'uniform vec3 color;',
 		'uniform float reflectivity;',
+		'uniform float alpha;',
 		'uniform vec4 config;',
 
 		'varying vec4 vCoord;',
@@ -369,7 +378,7 @@ THREE.Water.WaterShader = {
 		'	vec4 refractColor = texture2D( tRefractionMap, uv );',
 
 		// multiply water color with the mix of both textures
-		'	gl_FragColor = vec4( color, 1.0 ) * mix( refractColor, reflectColor, reflectance );',
+		'	gl_FragColor = vec4( color, alpha ) * mix( refractColor, reflectColor, reflectance );',
 
 		'	#include <tonemapping_fragment>',
 		'	#include <encodings_fragment>',

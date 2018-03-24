@@ -43,6 +43,7 @@ class heightMap:
 			for y in range(0, self.__sizeY):
 				self.__noiseMap[x][y] = tmpData[x, y]
 
+
 	def createNoiseForMountains(self, intensity, upperBound):
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
@@ -100,6 +101,11 @@ class heightMap:
 			for y in range(0, self.__sizeY):
 				self.__heightMap[x][y] = self.__heightMap[x][y] + baseMatrix[int(x), int(y)]
 
+	def createMountainForTest(self):
+		for x in range(0, self.__sizeX):
+			for y in range(0, self.__sizeY):
+				self.__heightMap[x][y] = self.__heightMap[x][y] + self.__sizeY - y
+
 	def createPlanes(self, planesDescription):
 		baseMatrix = numpy.zeros((self.__sizeX, self.__sizeY))
 		print 'creating planes...'
@@ -138,6 +144,9 @@ class heightMap:
 			for y in range(0, self.__sizeY):
 				tmpData[x, y] = int(self.__synthesizedMap[x][y])
 		tmpData = tmp.filter(ImageFilter.GaussianBlur(radius=gaussianBlurRadius)).load()
+		#tmpData = tmp.filter(ImageFilter.MedianFilter(gaussianBlurRadius)).load()
+		#tmpData = tmp.filter(ImageFilter.RankFilter(5,13)).load()
+		#tmpData = tmp.filter(ImageFilter.BLUR).load()
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
 				self.__synthesizedMap[x][y] = tmpData[x, y]
