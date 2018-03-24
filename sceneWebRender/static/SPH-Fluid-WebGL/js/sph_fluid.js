@@ -5,25 +5,25 @@ Navier-Stokes equations
 */
 
 class SPHFluid {
-  constructor() {
+  constructor(terrain) {
     // Physical attrs
     this.numParticles = 500;
     this.viscousity = 900 * 5;
     this.particleMass = 500 * .13;
     this.stiffness = 400 * 5;
-    this.gravityConst = 120000 * 9.82;
+    this.gravityConst = 240000 * 9.82;
     this.dt = 0.0004;
 
     this.particles_ = [];
     this.particlePositions_ = [this.numParticles];
 
-    this.heightMap = null;
+    this.terrain = terrain;
 
-    this.START_OFFSET_X = 0;
+    this.START_OFFSET_X = -50;
     this.START_OFFSET_Y = 0;
     this.START_OFFSET_Z = 0;
-    this.SQUARE_SIZE = 20;
-    this.PARTICLE_RADIUS = 0.1*2/2; // h/2
+    this.PARTICLE_RADIUS = 0.5*2/2; // h/2
+
     
     this.initParticles();
   }
@@ -40,7 +40,7 @@ class SPHFluid {
     for (let i = 0; i < this.numParticles; i++) { //TODO:
       this.particles_.push({
         position: new THREE.Vector3(0, 0, 0),
-        vel: new THREE.Vector3(100, 0, 0),
+        vel: new THREE.Vector3(10000, 0, 0),
         pressure: 0,
         density: 0,
         viscousityForce: new THREE.Vector3(0, 0, 0),
@@ -59,6 +59,7 @@ class SPHFluid {
       this.particlePositions_[i] = this.particles_[i].position;
     }
   }
+
 
   calculateDensityAndPressure() {
     for (let i = 0; i < this.particles_.length; i++) {
@@ -158,41 +159,69 @@ class SPHFluid {
     this.particlePositions_ = newPositions;
   }
 
-  checkBoundaries(particle) {
-    if ((particle.position.x*particle.position.x+particle.position.z*particle.position.z)<this.SQUARE_SIZE*this.SQUARE_SIZE) {
-      particle.vel.x = -0.8 * particle.vel.x;
-      particle.vel.z = -0.8 * particle.vel.z;
+  getTerrainInfo(x, z) {
+    var id = Math.round(x).toString()+'/'+Math.round(z).toString();
+    if (this.terrain['POS'][id]!=null) {
+      return this.terrain['POS'][id];
+    } else {
+      return null
     }
+  }
 
-    /*if (particle.position.x < -0.5* this.SQUARE_SIZE + this.PARTICLE_RADIUS + 1) {
-      particle.vel.x = -0.8 * particle.vel.x;
-      particle.position.x = -0.5* this.SQUARE_SIZE + this.PARTICLE_RADIUS + 1;
-    }
-
-    else if (particle.position.x > 0.5* this.SQUARE_SIZE - this.PARTICLE_RADIUS - 1) {
-      particle.vel.x = -0.8 * particle.vel.x;
-      particle.position.x = 0.5* this.SQUARE_SIZE - this.PARTICLE_RADIUS - 1;
-    }
-
-    if (particle.position.y < this.PARTICLE_RADIUS + 1) {
-      particle.vel.y = -0.8 * particle.vel.y;
-      particle.position.y = this.PARTICLE_RADIUS + 1;
-
-    } else if (
-      particle.position.y > this.SQUARE_SIZE - this.PARTICLE_RADIUS - 1) {
-      particle.vel.y = -0.8 * particle.vel.y;
-      particle.position.y = this.SQUARE_SIZE - this.PARTICLE_RADIUS - 1;
-    }
-
-    if (particle.position.z < -0.1* this.SQUARE_SIZE + this.PARTICLE_RADIUS + 1) {
-      particle.vel.z = -0.8 * particle.vel.z;
-      particle.position.z = -0.1* this.SQUARE_SIZE + this.PARTICLE_RADIUS + 1;
-
-    } else if (
-      particle.position.z > 0.1* this.SQUARE_SIZE - this.PARTICLE_RADIUS - 1) {
-      particle.vel.z = -0.8 * particle.vel.z;
-      particle.position.z = 0.1* this.SQUARE_SIZE - this.PARTICLE_RADIUS - 1;
-    }*/
+  calculateReflection(inputVec, normVec) {
+    var outVec = [0, 0, 0];
+    //console.warn(inputVec);
+    var inputVecValue = Math.sqrt(inputVec[0]*inputVec[0]+inputVec[1]*inputVec[1]+inputVec[2]*inputVec[2]);
+    var inputVecNew = [inputVec[0]/inputVecValue, inputVec[1]/inputVecValue, inputVec[2]/inputVecValue];
     
+    var inputVecNew_normVec = inputVecNew[0]*normVec[0]+inputVecNew[1]*normVec[1]+inputVecNew[2]*normVec[2];
+    outVec[0] = inputVecValue*(inputVecNew[0]-2*inputVecNew_normVec*normVec[0]);
+    outVec[1] = inputVecValue*(inputVecNew[1]-2*inputVecNew_normVec*normVec[1]);
+    outVec[2] = inputVecValue*(inputVecNew[2]-2*inputVecNew_normVec*normVec[2]);
+    return outVec;
+  }
+
+  gridPos(pos) {
+    return (pos);
+  }
+
+  checkBoundaries(particle) {
+    var decline = 0.65;
+    if (this.gridPos(particle.position.x) < -0.5* this.terrain['BOUND'][0] + this.PARTICLE_RADIUS + 1) {
+      particle.vel.x = -0.8 * particle.vel.x;
+      particle.position.x = -0.5* this.terrain['BOUND'][0] + this.PARTICLE_RADIUS + 1;
+    }
+
+    else if (this.gridPos(particle.position.x) > 0.5* this.terrain['BOUND'][0] - this.PARTICLE_RADIUS - 1) {
+      particle.vel.x = -0.8 * particle.vel.x;
+      particle.position.x = 0.5* this.terrain['BOUND'][0] - this.PARTICLE_RADIUS - 1;
+    }
+
+    if (this.gridPos(particle.position.z) < -0.5* this.terrain['BOUND'][1] + this.PARTICLE_RADIUS + 1) {
+      particle.vel.z = -0.8 * particle.vel.z;
+      particle.position.z = -0.5* this.terrain['BOUND'][1] + this.PARTICLE_RADIUS + 1;
+
+    } else if (
+      this.gridPos(particle.position.z) > 0.5* this.terrain['BOUND'][1] - this.PARTICLE_RADIUS - 1) {
+      particle.vel.z = -0.8 * particle.vel.z;
+      particle.position.z = 0.5* this.terrain['BOUND'][1] - this.PARTICLE_RADIUS - 1;
+    }
+
+    if (this.gridPos(particle.position.y) > this.terrain['BOUND'][0] - this.PARTICLE_RADIUS - 1) {
+      particle.vel.y = -0.8 * particle.vel.y;
+      particle.position.y = this.terrain['BOUND'][0] - this.PARTICLE_RADIUS - 1;
+    }
+
+    var terrainInfo = this.getTerrainInfo(particle.position.x, particle.position.z);
+    if (terrainInfo!=null) {
+      if(terrainInfo[1]>this.gridPos(particle.position.y)) {
+          var vTmp = this.calculateReflection([particle.vel.x, particle.vel.y, particle.vel.z], terrainInfo[0]);
+          particle.vel.x = decline*vTmp[0];
+          particle.vel.y = decline*vTmp[1];
+          particle.vel.z = decline*vTmp[2];
+
+          particle.position.y = terrainInfo[1];
+      }
+    }
   }
 }

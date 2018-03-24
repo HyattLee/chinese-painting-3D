@@ -47,6 +47,8 @@
 		<script src="/static/cloud/CloudShader.js"></script>
         <script src="/static/cloud/Cloud.js"></script>
 
+        <script src="/static/SPH-Fluid-WebGL/js/sph_fluid.js"></script>
+
         <script id="waternoiseheightmapFragmentShader" type="x-shader/x-fragment">
 			#include <common>
 			uniform float viscosityConstant;
@@ -116,7 +118,9 @@
 				density: 0//0.01
 			};
 			//
-			var terrainForWaterCompute;
+			var terrainForWaterCompute = new Object();
+			terrainForWaterCompute['BOUND'] = new Object();
+			terrainForWaterCompute['POS'] = new Object();
 
 			function initFlowWater(flowMap, speed, sizeX, sizeY) {
 				var waterGeometry = new THREE.PlaneBufferGeometry( sizeX, sizeY, WIDTH - 1, WIDTH - 1 );
@@ -470,7 +474,13 @@
 			    var testcount = 0;
 			    
 			    var terrainForWaterComputeTmp = new Object();
-			    terrainForWaterCompute = new Object();
+
+			    var max_x = -1;
+			    var min_x = 99999999999;
+			    var max_y = -1;
+			    var min_y = 99999999999;
+			    var max_z = -1;
+			    var min_z = 99999999999;
 
 			    for (var i=0; i<geometry.faces.length; i++) {
 					pos_a_x = Math.round(geometry.vertices[geometry.faces[i]['a']]['x']);
@@ -485,13 +495,71 @@
 					pos_c_y = Math.round(geometry.vertices[geometry.faces[i]['c']]['z']);
 					pos_c_z = Math.round(-geometry.vertices[geometry.faces[i]['c']]['y']);
 
+					if (pos_a_x>max_x) {
+			    		max_x = pos_a_x;
+			    	}
+			    	if (pos_a_x<min_x) {
+			    		min_x = pos_a_x;
+			    	}
+			    	if (pos_a_y>max_y) {
+			    		max_y = pos_a_y;
+			    	}
+			    	if (pos_a_y<min_y) {
+			    		min_y = pos_a_y;
+			    	}
+			    	if (pos_a_z>max_z) {
+			    		max_z = pos_a_z;
+			    	}
+			    	if (pos_a_z<min_z) {
+			    		min_z = pos_a_z;
+			    	}
+
+			    	if (pos_b_x>max_x) {
+			    		max_x = pos_b_x;
+			    	}
+			    	if (pos_b_x<min_x) {
+			    		min_x = pos_b_x;
+			    	}
+			    	if (pos_b_y>max_y) {
+			    		max_y = pos_b_y;
+			    	}
+			    	if (pos_b_y<min_y) {
+			    		min_y = pos_b_y;
+			    	}
+			    	if (pos_b_z>max_z) {
+			    		max_z = pos_b_z;
+			    	}
+			    	if (pos_b_z<min_z) {
+			    		min_z = pos_b_z;
+			    	}
+
+			    	if (pos_c_x>max_x) {
+			    		max_x = pos_c_x;
+			    	}
+			    	if (pos_c_x<min_x) {
+			    		min_x = pos_c_x;
+			    	}
+			    	if (pos_c_y>max_y) {
+			    		max_y = pos_c_y;
+			    	}
+			    	if (pos_c_y<min_y) {
+			    		min_y = pos_c_y;
+			    	}
+			    	if (pos_c_z>max_z) {
+			    		max_z = pos_c_z;
+			    	}
+			    	if (pos_c_z<min_z) {
+			    		min_z = pos_c_z;
+			    	}
+
+
 					dir_x = geometry.faces[i]['normal']['x'];
 					dir_y = geometry.faces[i]['normal']['z'];
 					dir_z = -geometry.faces[i]['normal']['y'];
 
 					//addTestPosIndicator(pos_a_x,pos_a_y,pos_a_z);
 					//addTestDirectionIndicator(pos_a_x,pos_a_y,pos_a_z, dir_x,dir_y,dir_z);
-					var id = pos_a_x.toString()+'/'+pos_a_y.toString()+'/'+pos_a_z.toString();
+					var id = pos_a_x.toString()+'/'+pos_a_z.toString();
 					if (terrainForWaterComputeTmp[id]==undefined) {
 						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_a_y, [pos_a_x, pos_a_y, pos_a_z]]];
 					} else {
@@ -500,7 +568,7 @@
 
 					//addTestPosIndicator(pos_b_x,pos_b_y,pos_b_z);
 					//addTestDirectionIndicator(pos_b_x,pos_b_y,pos_b_z, dir_x,dir_y,dir_z);
-					var id = pos_b_x.toString()+'/'+pos_b_y.toString()+'/'+pos_b_z.toString();
+					var id = pos_b_x.toString()+'/'+pos_b_z.toString();
 					if (terrainForWaterComputeTmp[id]==undefined) {
 						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_b_y, [pos_b_x, pos_b_y, pos_b_z]]];
 					} else {
@@ -509,13 +577,14 @@
 
 					//addTestPosIndicator(pos_c_x,pos_c_y,pos_c_z);
 					//addTestDirectionIndicator(pos_c_x,pos_c_y,pos_c_z, dir_x,dir_y,dir_z);
-					var id = pos_c_x.toString()+'/'+pos_c_y.toString()+'/'+pos_c_z.toString();
+					var id = pos_c_x.toString()+'/'+pos_c_z.toString();
 					if (terrainForWaterComputeTmp[id]==undefined) {
 						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_c_y, [pos_c_x, pos_c_y, pos_c_z]]];
 					} else {
 						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_c_y, [pos_c_x, pos_c_y, pos_c_z]]);
 					}
 			    }
+
 
 			    for (var key in terrainForWaterComputeTmp) {
 			    	var tmp = terrainForWaterComputeTmp[key];
@@ -527,12 +596,26 @@
 			    		s_dir_y = s_dir_y + tmp[i][0][1];
 			    		s_dir_z = s_dir_z + tmp[i][0][2];
 			    	}
-			    	terrainForWaterCompute[key] = [[s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length], tmp[0][1]];
+			    	terrainForWaterCompute['POS'][key] = [[s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length], tmp[0][1]];
 
 			    	//addTestPosIndicator(tmp[0][2][0],tmp[0][2][1],tmp[0][2][2]);
 					//addTestDirectionIndicator(tmp[0][2][0],tmp[0][2][1],tmp[0][2][2], s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length);
 
 			    }
+
+			    var cache = null;
+			    for (var x=min_x; x<max_x+1; x++) {
+			    	for (var z=min_z; z<max_z+1; z++) {
+			    		var id = x.toString() + '/' + z.toString();
+			    		if (terrainForWaterCompute['POS'][id]==null) {
+			    			terrainForWaterCompute['POS'][id] = cache;
+			    		} else {
+			    			cache = terrainForWaterCompute['POS'][id];
+			    		}
+			    	}
+			    }
+
+			    terrainForWaterCompute['BOUND'] = [groundSize, groundSize*tex.image.height/tex.image.width];
 			    
 			    return new THREE.Mesh(geometry, material);
 			}
@@ -543,7 +626,7 @@
 					terrain.position.set( 0, 0, 0 );
 					terrain.rotation.x = - Math.PI / 2;
 					terrain.scale.set( 1, 1, 1 );
-					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, groundSize, groundSize*tex.image.height/tex.image.width);
+					//initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, groundSize, groundSize*tex.image.height/tex.image.width);
 					terrain.receiveShadow = true;
 					terrain.castShadow = true;
 					terrain.name = "terrain";
@@ -596,6 +679,27 @@
 				//createObject([-100, -50], 450, "/static/obj/1.obj", "/static/texture/1.png", SIZE_HOUSE_HEIGHT/4);
 			}
 
+			var meshes = [];
+			function createParticleGraphics() {
+				var geometry = new THREE.SphereGeometry( fluid.PARTICLE_RADIUS, 4, 4 );
+				  var material = new THREE.MeshBasicMaterial( {color: 0x2FA1D6} );
+			    for (var position of fluid.particlePositions) {
+				  	var sphere = new THREE.Mesh( geometry, material );
+				  	sphere.position.set(position.x, position.y, position.z);
+				  	meshes.push(sphere);
+				  	scene.add(sphere);
+			    }
+			}
+			function updateFluidParticle() {
+				fluid.calculateAcceleration();
+	    		fluid.idle();
+	    		if (meshes.length!=0) {
+		    		for (var i = 0; i < fluid.particlePositions.length; i++) {
+				      	meshes[i].position.set(fluid.particlePositions[i].x, fluid.particlePositions[i].y, fluid.particlePositions[i].z);
+				    }
+				}
+			}
+
 			function onWindowResize( event ) {
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
@@ -615,9 +719,10 @@
 					var cloud = clouds[i];
 					cloud.update(t);
 				}*/
-				updateFlowWater();
+				//updateFlowWater();
 
 				controls.update();
+				updateFluidParticle();
 				renderer.render( scene, camera );
 			}
 
@@ -630,6 +735,11 @@
 
 			createGUI();
 			//placeObjects();
+
+			var fluid = new SPHFluid(terrainForWaterCompute);
+
+			createParticleGraphics();
+
 			animate();
 		</script>
 	</body>
