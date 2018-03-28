@@ -7,40 +7,35 @@ Navier-Stokes equations
 class SPHFluid {
   constructor(terrain) {
     // Physical attrs
-    this.numParticles = 500;
+    //this.numParticles = 500;
     this.viscousity = 900 * 5;
     this.particleMass = 500 * .13;
-    this.stiffness = 400 * 5;
-    this.gravityConst = 240000 * 9.82;
+    this.stiffness = 6* 400 * 5;
+    this.gravityConst = 3* 60000 * 9.82;
     this.dt = 0.0004;
 
-    this.particles_ = [];
-    this.particlePositions_ = [this.numParticles];
-
     this.terrain = terrain;
-
-    this.START_OFFSET_X = -50;
-    this.START_OFFSET_Y = 0;
-    this.START_OFFSET_Z = 0;
     this.PARTICLE_RADIUS = 0.5*2/2; // h/2
 
-    
-    this.initParticles();
+    this.particles_ = [];
+    this.numParticles = 0;
+    this.particlePositions = [];
   }
 
-  get particles() { return this.particles_; }
-  get particlePositions() { return this.particlePositions_; }
+  addParticles(pos_start, pos_end, move_dir, move_speed) {
+    var tmp = this.calculatexyz(pos_start, pos_end);
+    var tmp2 = this.calculatexyzSpeed(move_dir, move_speed);
+    var currentNumParticles = Math.sqrt(Math.pow(pos_start[0]-pos_end[0],2)+Math.pow(pos_start[1]-pos_end[1],2)+Math.pow(pos_start[2]-pos_end[2],2))/this.PARTICLE_RADIUS;
 
-  initParticles() {
-    this.particles_ = [];
-    // Set starting positions
-    let k = 0;
-    let j = 0;
+    var fromID = this.numParticles;
+    this.numParticles = this.numParticles + currentNumParticles;
+    var toID = this.numParticles-1;
 
-    for (let i = 0; i < this.numParticles; i++) { //TODO:
+    var j = 0;
+    for (let i = fromID; i < toID+1; i++) { //TODO:
       this.particles_.push({
         position: new THREE.Vector3(0, 0, 0),
-        vel: new THREE.Vector3(10000, 0, 0),
+        vel: new THREE.Vector3(0, 0, 10000),
         pressure: 0,
         density: 0,
         viscousityForce: new THREE.Vector3(0, 0, 0),
@@ -49,17 +44,37 @@ class SPHFluid {
         otherForce: new THREE.Vector3(0, 0, 0),
       });
 
-      if (i % 40 === 0) {
-        k++;
-        j = 0;
-      }
-      j++;
-
-      this.particles_[i].position.set(this.START_OFFSET_X + j * this.PARTICLE_RADIUS, 0, this.START_OFFSET_Z + k * this.PARTICLE_RADIUS);
-      this.particlePositions_[i] = this.particles_[i].position;
+      this.particles_[i].position.set(pos_start[0]+i*tmp[0], pos_start[1]+i*tmp[1], pos_start[2]+i*tmp[2]);
+      this.particles_[i].vel.set(tmp2[0], tmp2[1], tmp2[2]);
+      this.particlePositions.push(this.particles_[i].position);
+      j = j + 1;
     }
+    return [fromID, toID]
   }
 
+  calculatexyz(pos_start, pos_end) {
+    var tmpX = pos_end[0]-pos_start[0];
+    var tmpY = pos_end[1]-pos_start[1];
+    var tmpZ = pos_end[2]-pos_start[2];
+    var tmpx = 0;
+    var tmpy = 0;
+    var tmpz = 0;
+    if (tmpX!=0) {
+      tmpx = 2*this.PARTICLE_RADIUS/Math.sqrt(Math.pow(tmpY/tmpX, 2)+1+Math.pow(tmpZ/tmpX, 2));
+    }
+    if (tmpY!=0) {
+      tmpy = 2*this.PARTICLE_RADIUS/Math.sqrt(Math.pow(tmpX/tmpY, 2)+1+Math.pow(tmpZ/tmpY, 2));
+    }
+    if (tmpZ!=0) {
+      tmpz = 2*this.PARTICLE_RADIUS/Math.sqrt(Math.pow(tmpX/tmpZ, 2)+1+Math.pow(tmpY/tmpZ, 2));
+    }
+    return [tmpx, tmpy, tmpz];
+  }
+
+  calculatexyzSpeed(move_dir, move_speed) {
+    var tmp = Math.sqrt(Math.pow(move_dir[0], 2)+Math.pow(move_dir[1], 2)+Math.pow(move_dir[2], 2));
+    return [move_speed*move_dir[0]/tmp, move_speed*move_dir[1]/tmp, move_speed*move_dir[2]/tmp];
+  }
 
   calculateDensityAndPressure() {
     for (let i = 0; i < this.particles_.length; i++) {
@@ -156,7 +171,7 @@ class SPHFluid {
       newPositions.push(this.particles_[i].position);
       this.checkBoundaries(this.particles_[i]);
     }
-    this.particlePositions_ = newPositions;
+    this.particlePositions = newPositions;
   }
 
   getTerrainInfo(x, z) {
