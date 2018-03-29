@@ -15,11 +15,46 @@ class SPHFluid {
     this.dt = 0.0004;
 
     this.terrain = terrain;
-    this.PARTICLE_RADIUS = 0.5*2/2; // h/2
+
+    this.PARTICLE_RADIUS = 1*2/2; // h/2
 
     this.particles_ = [];
     this.numParticles = 0;
     this.particlePositions = [];
+  }
+
+  coverParticlesOnGround() {
+    var fromID = this.numParticles;
+    for (let x = -0.5*this.terrain['BOUND'][0]; x < 0.5*this.terrain['BOUND'][0]; x=x+2*this.PARTICLE_RADIUS) { //TODO:
+      for (let z = -0.5*this.terrain['BOUND'][1]; z < 0.5*this.terrain['BOUND'][1]; z=z+2*this.PARTICLE_RADIUS) {
+        if (this.terrain['POS'][x.toString()+'/'+z.toString()]==null) {
+          continue;
+        }
+        var norm = this.terrain['POS'][x.toString()+'/'+z.toString()][0];
+        var height = this.terrain['POS'][x.toString()+'/'+z.toString()][1];
+        if (norm[0]==0 && norm[2]==0) {
+          //continue;
+        }
+        if ((norm[0]!=0 || norm[2]!=0) || height!=0) {
+          continue;
+        }
+        this.particles_.push({
+          position: new THREE.Vector3(0, 0, 0),
+          vel: new THREE.Vector3(0, 0, 0),
+          pressure: 0,
+          density: 0,
+          viscousityForce: new THREE.Vector3(0, 0, 0),
+          pressureForce: new THREE.Vector3(0, 0, 0),
+          gravityForce: new THREE.Vector3(0, 0, 0),
+          otherForce: new THREE.Vector3(0, 0, 0),
+        });
+        this.particles_[this.numParticles].position.set(x, this.terrain['POS'][x.toString()+'/'+z.toString()][1], z);
+        this.particlePositions.push(this.particles_[this.numParticles].position);
+        this.numParticles = this.numParticles + 1;
+      }
+    }
+    var toID = this.numParticles-1;
+    return [fromID, toID]
   }
 
   addParticles(pos_start, pos_end, move_dir, move_speed) {
@@ -35,7 +70,7 @@ class SPHFluid {
     for (let i = fromID; i < toID+1; i++) { //TODO:
       this.particles_.push({
         position: new THREE.Vector3(0, 0, 0),
-        vel: new THREE.Vector3(0, 0, 10000),
+        vel: new THREE.Vector3(0, 0, 0),
         pressure: 0,
         density: 0,
         viscousityForce: new THREE.Vector3(0, 0, 0),
@@ -44,7 +79,7 @@ class SPHFluid {
         otherForce: new THREE.Vector3(0, 0, 0),
       });
 
-      this.particles_[i].position.set(pos_start[0]+i*tmp[0], pos_start[1]+i*tmp[1], pos_start[2]+i*tmp[2]);
+      this.particles_[i].position.set(pos_start[0]+j*tmp[0], pos_start[1]+j*tmp[1], pos_start[2]+j*tmp[2]);
       this.particles_[i].vel.set(tmp2[0], tmp2[1], tmp2[2]);
       this.particlePositions.push(this.particles_[i].position);
       j = j + 1;

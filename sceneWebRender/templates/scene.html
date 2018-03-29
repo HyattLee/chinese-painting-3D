@@ -97,6 +97,8 @@
 			var controls;
 			var sky, water, sunSphere, sunLight, pointLight, ambientLight;
 			var clouds = [];
+			var fluid;
+			var hasSPH = false;
 			var heightmapVariable;
 			var gui, shadowCameraHelper, shadowConfig = {
 				shadowCameraVisible: false,
@@ -617,7 +619,6 @@
 			    }
 
 			    terrainForWaterCompute['BOUND'] = [groundSize, groundSize*tex.image.height/tex.image.width];
-			    
 			    return new THREE.Mesh(geometry, material);
 			}
 
@@ -632,6 +633,11 @@
 					terrain.castShadow = true;
 					terrain.name = "terrain";
 					scene.add( terrain );
+
+					fluid = new SPHFluid(terrainForWaterCompute);
+					var tmpID = fluid.coverParticlesOnGround();
+					addParticleGraphics(tmpID[0], tmpID[1], {color:0x71FFDF, transparent:true, opacity:0.5});
+					hasSPH = true;
 				} );
 			}
 
@@ -681,9 +687,9 @@
 			}
 
 			var meshes = [];
-			function addParticleGraphics(fromID, toID) {
-				var geometry = new THREE.SphereGeometry( fluid.PARTICLE_RADIUS, 4, 4 );
-				var material = new THREE.MeshBasicMaterial( {color: 0x2FA1D6} );
+			function addParticleGraphics(fromID, toID, color) {
+				var geometry = new THREE.SphereGeometry( fluid.PARTICLE_RADIUS, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( color );
 			    for (var i=fromID; i<toID+1; i++) {
 				  	var sphere = new THREE.Mesh( geometry, material );
 				  	var position = fluid.particlePositions[i];
@@ -724,13 +730,16 @@
 				//updateFlowWater();
 
 				controls.update();
-				updateFluidParticle();
+				if (hasSPH) {
+					updateFluidParticle();
+				}
 				renderer.render( scene, camera );
 			}
 
 			$(document).keydown(function(event){
-			    if(event.keyCode==27){
-
+			    if(event.keyCode==27) { //ESC
+			    	var tmpID = fluid.addParticles([-50, 0, -50], [-40, 0, -50], [0, 0, 1], 1000);
+					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
 			    }
 			});
 
@@ -741,15 +750,9 @@
 			initSky();
 			initTerrain("/static/terrain/heightMap.png", "/static/terrain/texture.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
-			createGUI();
+
+			//createGUI();
 			//placeObjects();
-
-			var fluid = new SPHFluid(terrainForWaterCompute);
-			var tmpID = fluid.addParticles([-50, 0, -50], [-40, 0, -50], [0, 0, 1], 20000);
-			addParticleGraphics(tmpID[0], tmpID[1]);
-			tmpID = fluid.addParticles([-50, 0, -50], [-50, 0, -40], [1, 0, 0], 10000);
-			addParticleGraphics(tmpID[0], tmpID[1]);
-
 			animate();
 		</script>
 	</body>
