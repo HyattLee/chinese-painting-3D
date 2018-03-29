@@ -8,15 +8,15 @@ class SPHFluid {
   constructor(terrain) {
     // Physical attrs
     //this.numParticles = 500;
-    this.viscousity = 900 * 5;
-    this.particleMass = 500 * .13;
-    this.stiffness = 6* 400 * 5;
-    this.gravityConst = 3* 60000 * 9.82;
-    this.dt = 0.0004;
+    this.viscousity = 0.001* 900 * 5;
+    this.particleMass = 10* 500 * .13;
+    this.stiffness = 2* 400 * 5;
+    this.gravityConst = 0.6* 60000 * 9.82;
+    this.dt = 6.5*0.0004;
 
     this.terrain = terrain;
 
-    this.PARTICLE_RADIUS = 1*2/2; // h/2
+    this.PARTICLE_RADIUS = 2.5*2/2; // h/2
 
     this.particles_ = [];
     this.numParticles = 0;

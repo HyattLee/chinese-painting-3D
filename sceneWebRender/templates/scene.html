@@ -635,9 +635,9 @@
 					scene.add( terrain );
 
 					fluid = new SPHFluid(terrainForWaterCompute);
-					var tmpID = fluid.coverParticlesOnGround();
+					/*var tmpID = fluid.coverParticlesOnGround();
 					addParticleGraphics(tmpID[0], tmpID[1], {color:0x71FFDF, transparent:true, opacity:0.5});
-					hasSPH = true;
+					hasSPH = true;*/
 				} );
 			}
 
@@ -736,10 +736,17 @@
 				renderer.render( scene, camera );
 			}
 
+			var countInd = 1;
 			$(document).keydown(function(event){
 			    if(event.keyCode==27) { //ESC
-			    	var tmpID = fluid.addParticles([-50, 0, -50], [-40, 0, -50], [0, 0, 1], 1000);
+			    	var tmpID = fluid.addParticles([-50, 0, -50], [-35, 0, -50], [0, 0, 1], countInd*200);
 					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
+
+					tmpID = fluid.addParticles([-50, 0, -50], [-50, 0, -20], [1, 0, 1], countInd*200);
+					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
+
+					hasSPH = true;
+					countInd = countInd + 1;
 			    }
 			});
 
