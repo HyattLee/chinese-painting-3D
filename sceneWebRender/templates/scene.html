@@ -99,6 +99,7 @@
 			var clouds = [];
 			var fluid;
 			var hasSPH = false;
+			var hasWaterFlow = false;
 			var heightmapVariable;
 			var gui, shadowCameraHelper, shadowConfig = {
 				shadowCameraVisible: false,
@@ -131,19 +132,26 @@
 				var normalMap0 = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Normal.jpg' );
 				var normalMap1 = new THREE.TextureLoader().load( '/static/texture/Water_2_M_Normal.jpg' );
 				water = new THREE.Water( waterGeometry, {
-					scale: 2,
+					scale: 1,
 					textureWidth: WIDTH,
 					textureHeight: WIDTH,
 					flowMap: flowMap,
 					flowSpeed: speed,
 					normalMap0: normalMap0,
 					normalMap1: normalMap1,
-					alpha: 0.6
+					alpha: 0.4
 				} );
 				water.position.y = SIZE_WATER_LEVEL;
 				water.rotation.x = Math.PI * - 0.5;
+				water.name = 'water';
 				scene.add( water );
-				createGPUCompute(sizeX*0.04*speed);
+				createGPUCompute(sizeX*0.01*speed);
+				hasWaterFlow = true;
+			}
+
+			function removeFlowWater() {
+				var selectedObject = scene.getObjectByName('water');
+				scene.remove( selectedObject );
 			}
 
 			function createGPUCompute(noiseMaxHeight) {
@@ -622,22 +630,24 @@
 			    return new THREE.Mesh(geometry, material);
 			}
 
+			var paramForInitWaterFlow = [0, 0];
 			function initTerrain(heightmapPath, texturePath, mountainSize, groundSize) {
 				var tex = THREE.ImageUtils.loadTexture(heightmapPath, THREE.UVMapping, function() {
 					var terrain = buildTerrain( tex, texturePath, mountainSize, groundSize );
 					terrain.position.set( 0, 0, 0 );
 					terrain.rotation.x = - Math.PI / 2;
 					terrain.scale.set( 1, 1, 1 );
-					//initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, groundSize, groundSize*tex.image.height/tex.image.width);
+					paramForInitWaterFlow = [groundSize, groundSize*tex.image.height/tex.image.width];
 					terrain.receiveShadow = true;
 					terrain.castShadow = true;
 					terrain.name = "terrain";
 					scene.add( terrain );
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.2, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
 
 					fluid = new SPHFluid(terrainForWaterCompute);
-					/*var tmpID = fluid.coverParticlesOnGround();
-					addParticleGraphics(tmpID[0], tmpID[1], {color:0x71FFDF, transparent:true, opacity:0.5});
-					hasSPH = true;*/
+					//var tmpID = fluid.coverParticlesOnGround();
+					//addParticleGraphics(tmpID[0], tmpID[1], {color:0x71FFDF, transparent:true, opacity:0.5});
+					//hasSPH = true;
 				} );
 			}
 
@@ -694,10 +704,26 @@
 				  	var sphere = new THREE.Mesh( geometry, material );
 				  	var position = fluid.particlePositions[i];
 				  	sphere.position.set(position.x, position.y, position.z);
+				  	sphere.name = "sphere"+i.toString();
 				  	meshes.push(sphere);
 				  	scene.add(sphere);
 			    }
 			}
+
+			function removeParticleGraphics() {
+				var delList = []
+				for (var i=0; i<scene.children.length; i++) {
+					if (scene.children[i].name.indexOf("sphere")!=-1) {
+						delList.push(scene.getObjectByName(scene.children[i].name));
+					}
+				}
+				for (var i=0; i<delList.length; i++) {
+					scene.remove( delList[i] );
+				}
+				meshes = []
+    			hasSPH = false;
+			}
+
 			function updateFluidParticle() {
 				fluid.calculateAcceleration();
 	    		fluid.idle();
@@ -727,9 +753,13 @@
 					var cloud = clouds[i];
 					cloud.update(t);
 				}*/
-				//updateFlowWater();
 
 				controls.update();
+
+				if (hasWaterFlow) {
+					updateFlowWater();
+				}
+
 				if (hasSPH) {
 					updateFluidParticle();
 				}
@@ -739,14 +769,41 @@
 			var countInd = 1;
 			$(document).keydown(function(event){
 			    if(event.keyCode==27) { //ESC
-			    	var tmpID = fluid.addParticles([-50, 0, -50], [-35, 0, -50], [0, 0, 1], countInd*200);
+			    	removeFlowWater()
+
+			    	var tmpID = fluid.addParticles([-47, 0, -50], [-38, 0, -50], [0, 0, 1], countInd*50);
 					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
 
-					tmpID = fluid.addParticles([-50, 0, -50], [-50, 0, -20], [1, 0, 1], countInd*200);
-					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
-
+					//tmpID = fluid.addParticles([-50, 0, -50], [-50, 0, -20], [1, 0, 1], countInd*50);
+					//addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
 					hasSPH = true;
 					countInd = countInd + 1;
+			    }
+			});
+
+			function getListFromFlowMap(flowMapXZ) {
+				var tmp = '[';
+				for (var x=0; x<flowMapXZ.length; x++) {
+					for (var z=0; z<flowMapXZ[x].length; z++) {
+						tmp = tmp + ',' + flowMapXZ[x][z][0];
+						tmp = tmp + ',' + flowMapXZ[x][z][1];
+					}
+				}
+				tmp = tmp + ']';
+				return tmp;
+			}
+
+			$(document).keydown(function(event){
+			    if(event.keyCode==13) { //ENTER
+			    	removeParticleGraphics();
+					$.ajax({
+					  type: 'POST',
+					  url: "/parseFlowMap",
+					  data: JSON.stringify(fluid.flowmapXZ), 
+					  dataType: "json" 
+					});
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.2, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+
 			    }
 			});
 

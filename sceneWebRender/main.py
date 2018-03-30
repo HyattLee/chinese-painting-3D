@@ -3,6 +3,7 @@ from flask import Flask, render_template, jsonify, request
 import json
 import handleSketch
 from terrain import creator, texture
+from water import flowmap
 
 app = Flask(__name__)
 
@@ -26,10 +27,17 @@ def sph():
 def terrain():
 	return render_template('terrain.html'), 201
 
+@app.route("/parseFlowMap", methods=['POST'])
+def parseFlowMap():
+	flowmapXZ = request.get_data()
+	flowmap.generate(json.loads(flowmapXZ))
+
+	return jsonify({'success':True}), 201
+
 @app.route("/achieveSketch", methods=['POST'])
 def achieveSketch():
 	data = None
-	for key in request.form:
+	for key in request.get_data():
 		data = json.loads(key)
 
 	sceneDesc = handleSketch.parseBackground(data['pixel'], data['size'])

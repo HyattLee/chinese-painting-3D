@@ -8,15 +8,22 @@ class SPHFluid {
   constructor(terrain) {
     // Physical attrs
     //this.numParticles = 500;
-    this.viscousity = 0.001* 900 * 5;
-    this.particleMass = 10* 500 * .13;
-    this.stiffness = 2* 400 * 5;
+    this.viscousity = 0.00001* 900 * 5;
+    this.particleMass = 15* 500 * .13;
+    this.stiffness = 2 * 400 * 5;
     this.gravityConst = 0.6* 60000 * 9.82;
     this.dt = 6.5*0.0004;
 
     this.terrain = terrain;
+    this.flowmapXZ = new Array();
+    for (var x=0; x<terrain['BOUND'][0]; x++) {
+      this.flowmapXZ.push([]);
+      for (var z=0; z<terrain['BOUND'][1]; z++) {
+        this.flowmapXZ[x].push([0, 0]);
+      }
+    }
 
-    this.PARTICLE_RADIUS = 2.5*2/2; // h/2
+    this.PARTICLE_RADIUS = 3*2/2; // h/2
 
     this.particles_ = [];
     this.numParticles = 0;
@@ -191,6 +198,7 @@ class SPHFluid {
     let newPositions = [];
 
     for (let i = 0; i < this.particles_.length; i++) {
+      var directXZ = [this.particles_[i].position.x, this.particles_[i].position.z];
       newPos.addVectors(this.particles_[i].gravityForce, this.particles_[i].viscousityForce);
       newPos.add(this.particles_[i].pressureForce);
       newPos.add(this.particles_[i].otherForce)
@@ -203,7 +211,21 @@ class SPHFluid {
 
       this.particles_[i].position.set(newPos.x, newPos.y, newPos.z);
       this.particles_[i].vel.set(newVel.x, newVel.y, newVel.z);
+      directXZ = [directXZ[0] - this.particles_[i].position.x, directXZ[1] - this.particles_[i].position.z];
       newPositions.push(this.particles_[i].position);
+
+      var tmpx0 = Math.round(this.particles_[i].position.x)+this.terrain['BOUND'][0]/2;
+      var tmpz0 = Math.round(this.particles_[i].position.z)+this.terrain['BOUND'][1]/2;
+      for (var ix=-this.PARTICLE_RADIUS; ix<this.PARTICLE_RADIUS; ix++) {
+        for (var iz=-this.PARTICLE_RADIUS; iz<this.PARTICLE_RADIUS; iz++) {
+          if (tmpx0+ix>=0 && tmpz0+iz>=0) {
+            if (this.flowmapXZ[tmpx0+ix][tmpz0+iz][0]==0 && this.flowmapXZ[tmpx0+ix][tmpz0+iz][1]==0) {
+              this.flowmapXZ[tmpx0+ix][tmpz0+iz] = directXZ;
+            }
+          }
+        }
+      }
+
       this.checkBoundaries(this.particles_[i]);
     }
     this.particlePositions = newPositions;

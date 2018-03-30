@@ -2,17 +2,14 @@ from PIL import Image, ImageOps, ImageFilter
 import random, copy
 import numpy, math
 
-class flowmap:
+class flowmap_core:
 	__flowmap = []
 	__sizeX = -1
 	__sizeY = -1
 
-	def __init__(self, path):
-		im = Image.open(path)
-		self.__sizeX, self.__sizeY = im.size
-		print self.__sizeX, self.__sizeY
-		print im.load()[0,0]
-
+	def __init__(self, sizeX, sizeY):
+		self.__sizeX = sizeX
+		self.__sizeY = sizeY
 		for x in range(0, self.__sizeX):
 			self.__flowmap.append([])
 			for y in range(0, self.__sizeY):
@@ -21,8 +18,6 @@ class flowmap:
 	def __deNormalize(self, inputPix):
 		return min(int(-inputPix*128+128), 255)
 
-	def __setPixel(self, pos, RG):
-		self.__flowmap[pos[0]][pos[1]] = (RG[0], RG[1], 0)
 
 	def setPixel(self, pos, RG):
 		self.__flowmap[pos[0]][pos[1]] = (RG[0], RG[1], 0)
@@ -35,25 +30,14 @@ class flowmap:
 				tmp[x, y] = (self.__deNormalize(self.__flowmap[x][y][0]), 
 							self.__deNormalize(self.__flowmap[x][y][1]),
 							self.__deNormalize(self.__flowmap[x][y][2]))
-		image_tmp = image_tmp.filter(ImageFilter.GaussianBlur(radius=blurR))
+		#image_tmp = image_tmp.filter(ImageFilter.GaussianBlur(radius=blurR))
 		image_tmp.save(path)
 
-mapSize = 700
-fm = flowmap('heightMap.png')
 
-for i in range(0, mapSize):
-	for j in range(0, mapSize):
-		if i>mapSize*0.8:
-			fm.setPixel([i, j], [0,1])
-		elif i<mapSize*0.2:
-			fm.setPixel([i, j], [0,-1])
-		else:
-			fm.setPixel([i, j], [0,0])
+def generate(flowmapXZ):
+	fm = flowmap_core(len(flowmapXZ), len(flowmapXZ[0]))
+	for x in range(0, len(flowmapXZ)):
+		for z in range(0, len(flowmapXZ[0])):
+			fm.setPixel([x, z], flowmapXZ[x][z])
 
-		if j<mapSize*0.2:
-			fm.setPixel([i, j], [1,0])
-		elif j>mapSize*0.8:
-			fm.setPixel([i, j], [-1,0])
-
-
-fm.save('../static/texture/Water_1_M_Flow.jpg', 0.1*mapSize)
+	fm.save('static/texture/Water_1_M_Flow.jpg', 5)
