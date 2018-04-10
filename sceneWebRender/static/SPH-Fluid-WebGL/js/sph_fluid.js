@@ -211,7 +211,11 @@ class SPHFluid {
 
       this.particles_[i].position.set(newPos.x, newPos.y, newPos.z);
       this.particles_[i].vel.set(newVel.x, newVel.y, newVel.z);
-      directXZ = [directXZ[0] - this.particles_[i].position.x, directXZ[1] - this.particles_[i].position.z];
+
+      var tmpdeltaX = directXZ[0] - this.particles_[i].position.x;
+      var tmpdeltaZ = directXZ[1] - this.particles_[i].position.z;
+      var tmplengthXZ = Math.sqrt(Math.pow(tmpdeltaX, 2)+Math.pow(tmpdeltaZ, 2));
+      directXZ = [255*tmpdeltaX/tmplengthXZ, 255*tmpdeltaZ/tmplengthXZ];
       newPositions.push(this.particles_[i].position);
 
       var tmpx0 = Math.round(this.particles_[i].position.x)+this.terrain['BOUND'][0]/2;

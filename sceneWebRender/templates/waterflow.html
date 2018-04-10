@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>water flow map</title>
+		<title>three.js - water flow map</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
@@ -38,8 +38,6 @@
 		<script src="/static/threejs/dat.gui.min.js"></script>
 		<script src="/static/threejs/GPUComputationRenderer.js"></script>
 		<script src="/static/threejs/SimplexNoise.js"></script>
-
-		<script src="/static/SPH-Fluid-WebGL/js/sph_fluid.js"></script>
 
 	</head>
 	<body>
@@ -206,26 +204,6 @@
 			}
 		}
 
-		var meshes = [];
-		function createParticleGraphics() {
-			var geometry = new THREE.SphereGeometry( fluid.PARTICLE_RADIUS, 4, 4 );
-			  var material = new THREE.MeshBasicMaterial( {color: 0x2FA1D6} );
-		    for (var position of fluid.particlePositions) {
-			  	var sphere = new THREE.Mesh( geometry, material );
-			  	sphere.position.set(position.x, position.y, position.z);
-			  	meshes.push(sphere);
-			  	scene.add(sphere);
-		    }
-		}
-		function updateFluidParticle() {
-			fluid.calculateAcceleration();
-    		fluid.idle();
-    		if (meshes.length!=0) {
-	    		for (var i = 0; i < fluid.particlePositions.length; i++) {
-			      	meshes[i].position.set(fluid.particlePositions[i].x, fluid.particlePositions[i].y, fluid.particlePositions[i].z);
-			    }
-			}
-		}
 
 		function init() {
 			// scene
@@ -241,15 +219,15 @@
 
 			scene.fog = new THREE.FogExp2( 0xffffff, 0.002 );
 			// ground
-			var groundGeometry = new THREE.PlaneBufferGeometry( SIZE_GROUND_WIDTH, SIZE_GROUND_WIDTH);
+			var groundGeometry = new THREE.PlaneBufferGeometry( 10*SIZE_GROUND_WIDTH, 10*SIZE_GROUND_WIDTH);
 			var groundMaterial = new THREE.MeshBasicMaterial( { color: 0xcccccc } );
 			var ground = new THREE.Mesh( groundGeometry, groundMaterial );
 			ground.rotation.x = Math.PI * - 0.5;
-			ground.position.y = 0;
+			ground.position.y = -1;
 			scene.add( ground );
 
 			var textureLoader = new THREE.TextureLoader();
-			textureLoader.load( '/static/texture/timg.jpg', function( map ) {
+			textureLoader.load( '/static/texture/FloorsCheckerboard_S_Diffuse.jpg', function( map ) {
 				map.wrapS = THREE.RepeatWrapping;
 				map.wrapT = THREE.RepeatWrapping;
 				map.anisotropy = 16;
@@ -286,19 +264,14 @@
 		}
 
 		function render() {
-			//updateFlowWater();
-			updateFluidParticle();
-
+			updateFlowWater();
 			renderer.render( scene, camera );
 		}
 
 		init();
 		var tmpWidth = SIZE_GROUND_WIDTH;
 		var tmpHeight = SIZE_GROUND_WIDTH*700.0/1004.0;
-		//initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.4, tmpWidth, tmpHeight);
-
-		var fluid = new SPHFluid();
-		createParticleGraphics();
+		initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.2, tmpWidth, tmpHeight);
 
 		animate();
 

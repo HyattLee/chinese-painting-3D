@@ -368,7 +368,7 @@ THREE.Water.WaterShader = {
 
 		// calculate the fresnel term to blend reflection and refraction maps
 		'	float theta = max( dot( toEye, normal ), 0.0 );',
-		'	float reflectance = reflectivity + ( 1.0 - reflectivity ) * pow( ( 1.0 - theta ), 5.0 );',
+		'	float reflectance = reflectivity + ( 1.0 - reflectivity ) * pow( ( 1.0 - theta ), 1.0 );', //5.0
 
 		// calculate final uv coords
 		'	vec3 coord = vCoord.xyz / vCoord.w;',

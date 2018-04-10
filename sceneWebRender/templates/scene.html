@@ -84,7 +84,7 @@
 			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
 			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/5;
 			SIZE_MOUNTAIN_HEIGHT_SCALE = SIZE_GROUND_WIDTH/50;
-			SIZE_WATER_LEVEL = 1;
+			SIZE_WATER_LEVEL = 2.5;
 			WIDTH = 128;
 			BOUNDS = SIZE_GROUND_WIDTH;
 			//
@@ -109,13 +109,13 @@
 				shadowBias: 0.00332
 			};
 			var skyEffectController  = {
-				turbidity: 20,
-				rayleigh: 4,
-				mieCoefficient: 0.1,
-				mieDirectionalG: 0.5,
-				luminance: 1,
-				inclination: 0.4828, // elevation / inclination
-				azimuth: 0.084,//0.1723, // Facing front,
+				turbidity: 6.5,
+				rayleigh: 0.603,
+				mieCoefficient: 0.009,
+				mieDirectionalG: 0.531,
+				luminance: 0.5,
+				inclination: 0.2283, // elevation / inclination
+				azimuth: 0.0098,//0.1723, // Facing front,
 				sun: true
 			};
 			var fogConfig = {
@@ -126,26 +126,27 @@
 			terrainForWaterCompute['BOUND'] = new Object();
 			terrainForWaterCompute['POS'] = new Object();
 
-			function initFlowWater(flowMap, speed, sizeX, sizeY) {
+			function initFlowWater(flowMap, speed, amplitude, scale, sizeX, sizeY) { //0.02, 0.025*5
 				var waterGeometry = new THREE.PlaneBufferGeometry( sizeX, sizeY, WIDTH - 1, WIDTH - 1 );
 				var flowMap = new THREE.TextureLoader().load( flowMap );
 				var normalMap0 = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Normal.jpg' );
 				var normalMap1 = new THREE.TextureLoader().load( '/static/texture/Water_2_M_Normal.jpg' );
 				water = new THREE.Water( waterGeometry, {
-					scale: 1,
+					scale: 4.0,
 					textureWidth: WIDTH,
 					textureHeight: WIDTH,
 					flowMap: flowMap,
 					flowSpeed: speed,
 					normalMap0: normalMap0,
 					normalMap1: normalMap1,
-					alpha: 0.4
+					alpha: 1,
+					color: 0xFFFFFF
 				} );
 				water.position.y = SIZE_WATER_LEVEL;
 				water.rotation.x = Math.PI * - 0.5;
 				water.name = 'water';
 				scene.add( water );
-				createGPUCompute(sizeX*0.01*speed);
+				createGPUCompute(sizeX*amplitude*speed, scale);
 				hasWaterFlow = true;
 			}
 
@@ -154,13 +155,11 @@
 				scene.remove( selectedObject );
 			}
 
-			function createGPUCompute(noiseMaxHeight) {
+			function createGPUCompute(noiseMaxHeight, scale) {
 				waterHeightMap_gpuCompute = new GPUComputationRenderer( WIDTH, WIDTH, renderer );
 				var waternoiseheightmap0 = waterHeightMap_gpuCompute.createTexture();
-				fillWaterNoiseTexture(waternoiseheightmap0, noiseMaxHeight);
-				fillWaterHeightTexture(waternoiseheightmap0);
+				fillWaterNoiseTexture(waternoiseheightmap0, noiseMaxHeight, scale);
 				waternoiseheightmapVariable = waterHeightMap_gpuCompute.addVariable( "noiseheightmap", document.getElementById( 'waternoiseheightmapFragmentShader' ).textContent, waternoiseheightmap0 );
-
 
 				waterHeightMap_gpuCompute.setVariableDependencies( waternoiseheightmapVariable, [ waternoiseheightmapVariable ] );
 
@@ -179,28 +178,10 @@
 				}
 			}
 
-			function fillWaterTestTexture( texture ) { //randomly create texture on initHeighMap
-				var pixels = texture.image.data;
-				var p = 0;
-				for ( var j = 0; j < WIDTH; j++ ) {
-					for ( var i = 0; i < WIDTH; i++ ) {
-						if (j<3) {
-							var x = i * 128 / WIDTH;
-							var y = j * 128 / WIDTH;
-							pixels[ p + 0 ] += 2;
-							pixels[ p + 1 ] = 0;
-							pixels[ p + 2 ] = 0;
-							pixels[ p + 3 ] = 1;
-							p += 4;
-						}
-					}
-				}
-			}
-
-			function fillWaterNoiseTexture( texture, noiseMaxHeight ) { //randomly create texture on initHeighMap
+			function fillWaterNoiseTexture( texture, noiseMaxHeight, scale ) { //randomly create texture on initHeighMap
 				function noise( x, y ) {
 					var multR = noiseMaxHeight;
-					var mult = 0.025;
+					var mult = scale;
 					var r = 0;
 					for ( var i = 0; i < 15; i++ ) {
 						r += multR * simplex.noise( x * mult, y * mult );
@@ -216,23 +197,6 @@
 						var x = i * 128 / WIDTH;
 						var y = j * 128 / WIDTH;
 						pixels[ p + 0 ] += noise( x, y );
-						pixels[ p + 1 ] = 0;
-						pixels[ p + 2 ] = 0;
-						pixels[ p + 3 ] = 1;
-						p += 4;
-					}
-				}
-			}
-
-			function fillWaterHeightTexture( texture ) { //randomly create texture on initHeighMap
-				var pixels = texture.image.data;
-				var p = 0;
-				for ( var j = 0; j < WIDTH; j++ ) {
-					for ( var i = 0; i < WIDTH; i++ ) {
-						var x = i * 128 / WIDTH;
-						var y = j * 128 / WIDTH;
-						var tmp = 0 * Math.sqrt(Math.pow((x-0.5*WIDTH),2)+Math.pow((y-0.5*WIDTH),2));
-						pixels[ p + 0 ] += tmp;
 						pixels[ p + 1 ] = 0;
 						pixels[ p + 2 ] = 0;
 						pixels[ p + 3 ] = 1;
@@ -642,12 +606,9 @@
 					terrain.castShadow = true;
 					terrain.name = "terrain";
 					scene.add( terrain );
-					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.2, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.02, 0.025*5, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
 
 					fluid = new SPHFluid(terrainForWaterCompute);
-					//var tmpID = fluid.coverParticlesOnGround();
-					//addParticleGraphics(tmpID[0], tmpID[1], {color:0x71FFDF, transparent:true, opacity:0.5});
-					//hasSPH = true;
 				} );
 			}
 
@@ -802,7 +763,7 @@
 					  data: JSON.stringify(fluid.flowmapXZ), 
 					  dataType: "json" 
 					});
-					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.2, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.1, 0.025*5, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
 
 			    }
 			});
@@ -815,7 +776,7 @@
 			initTerrain("/static/terrain/heightMap.png", "/static/terrain/texture.png", SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 
 
-			//createGUI();
+			createGUI();
 			//placeObjects();
 			animate();
 		</script>

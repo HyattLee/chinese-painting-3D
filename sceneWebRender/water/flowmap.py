@@ -30,7 +30,7 @@ class flowmap_core:
 				tmp[x, y] = (self.__deNormalize(self.__flowmap[x][y][0]), 
 							self.__deNormalize(self.__flowmap[x][y][1]),
 							self.__deNormalize(self.__flowmap[x][y][2]))
-		#image_tmp = image_tmp.filter(ImageFilter.GaussianBlur(radius=blurR))
+		image_tmp = image_tmp.filter(ImageFilter.GaussianBlur(radius=blurR))
 		image_tmp.save(path)
 
 

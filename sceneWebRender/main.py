@@ -19,6 +19,10 @@ def painting():
 def waterflow():
 	return render_template('waterflow.html'), 201
 
+@app.route("/waterDynamicSurface", methods=['GET'])
+def waterDynamicSurface():
+	return render_template('waterDynamicSurface.html'), 201
+
 @app.route("/sph", methods=['GET'])
 def sph():
 	return render_template('sph.html'), 201
