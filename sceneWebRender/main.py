@@ -40,39 +40,34 @@ def parseFlowMap():
 
 @app.route("/achieveSketch", methods=['POST'])
 def achieveSketch():
-	data = None
-	for key in request.get_data():
-		data = json.loads(key)
+	data = json.loads(request.get_data())
+	print data
 
 	sceneDesc = handleSketch.parseBackground(data['pixel'], data['size'])
 	
 	HM = creator.heightMap(sceneDesc['size'])
-	#HM.createMountains(sceneDesc['mountain'])
-	#HM.adjustMountains(upperBound=200)
-	#HM.saveMountainMap("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_mountain.png")
-	#HM.synthesizeMountains()
+	HM.createMountains(sceneDesc['mountain'])
+	HM.adjustMountains(upperBound=200)
+	HM.saveMountainMap("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_mountain.png")
+	HM.synthesizeMountains()
 
-	#HM.createPlanes(sceneDesc['plane'])
-	#HM.synthesizePlanes()
-	#HM.exportTerrainMap("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_terrain.png")
+	HM.createPlanes(sceneDesc['plane'])
+	HM.synthesizePlanes()
+	HM.exportTerrainMap("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_terrain.png")
 
-	#HM.smoothSynthesize(5)
+	HM.smoothSynthesize(8)
 
-	HM.createMountainForTest()#!!!
-	HM.adjustMountains(upperBound=200)#!!!
-	HM.synthesizeMountains()#!!!
-
-	HM.createNoiseForMountains(200, 30) 
-	HM.smoothNoise(2.5)#2,3.5,5
+	HM.createNoiseForMountains(150, 30) 
+	HM.smoothNoise(3.5)#2,3.5,5
 	HM.synthesizeNoise()
 
 	#HM.createTree(7, 1000, 1)
 	#HM.synthesizeTree()
 
 	HM.saveSynthesizedMap("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/heightMap.png")
-	texture.generateTextureForTerrain("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_mountain.png",
-										"/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_terrain.png",
-										"/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/texture.png")
+	#texture.generateTextureForTerrain("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_mountain.png",
+										#"/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/tmp_terrain.png",
+										#"/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/texture.png")
 	return render_template('painting.html'), 201
 
 if __name__ == '__main__':

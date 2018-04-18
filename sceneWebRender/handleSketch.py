@@ -1,5 +1,5 @@
 import math
-COUNT = 20
+COUNT = 50
 
 def parseBackground(objectList, size):
 	result = {'mountain':[], 'size':[size['width'],size['height']], 'plane':[]}##
@@ -65,7 +65,7 @@ def parseBackground(objectList, size):
 					if tmpCount%tmp2Step==0:
 						horizontalRidge.append({'h':float(meanYHorizontalReference-tmp3[1])/size['height'], 
 												'x0':float(tmp3[0])/size['width'], 
-												'y0':(float(tmp3[1])/size['height']/1.5), 
+												'y0':(float(tmp3[1])/size['height']/1.2), 
 												'rl':float(radiusHorizontalReference)/(size['width']*1.2),
 												'rh':float(20)/size['width']})
 					tmpCount = tmpCount + 1
@@ -104,9 +104,9 @@ def parseBackground(objectList, size):
 				for tmp3 in tmp2:
 					if tmpCount%tmp2Step==0:
 						planes.append({	'Ax':float(tmp3[0])/size['width'], 
-										'Ay':float(meanYHorizontalReference)/size['height'],  ##TODO
+										'Ay':float(max(meanYHorizontalReference, tmp3[1]))/size['height'],  ##TODO
 										'Bx':float(tmp3[0])/size['width'],
-										'By':float(tmp3[1])/size['height']})
+										'By':float(min(meanYHorizontalReference, tmp3[1]))/size['height']})
 					tmpCount = tmpCount + 1
 				planeList.append(planes)
 

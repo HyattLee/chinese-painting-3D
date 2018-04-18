@@ -368,7 +368,7 @@ THREE.Water.WaterShader = {
 
 		// calculate the fresnel term to blend reflection and refraction maps
 		'	float theta = max( dot( toEye, normal ), 0.0 );',
-		'	float reflectance = reflectivity + ( 1.0 - reflectivity ) * pow( ( 1.0 - theta ), 1.0 );', //5.0
+		'	float reflectance = reflectivity + ( 1.0 - reflectivity ) * pow( ( 1.0 - theta ), 1.5 );', //5.0
 
 		// calculate final uv coords
 		'	vec3 coord = vCoord.xyz / vCoord.w;',
@@ -377,7 +377,7 @@ THREE.Water.WaterShader = {
 		'	vec4 reflectColor = texture2D( tReflectionMap, uv );',
 		'	vec4 refractColor = texture2D( tRefractionMap, uv );',
 
-		// multiply water color with the mix of both textures
+		// multiply water color with the mix of both textures: '	gl_FragColor = vec4( color, alpha ) * mix( refractColor, reflectColor, reflectance );',
 		'	gl_FragColor = vec4( color, alpha ) * mix( refractColor, reflectColor, reflectance );',
 
 		'	#include <tonemapping_fragment>',

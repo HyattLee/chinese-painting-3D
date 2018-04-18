@@ -82,9 +82,8 @@
 			SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
 			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
 			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
-			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/5;
-			SIZE_MOUNTAIN_HEIGHT_SCALE = SIZE_GROUND_WIDTH/50;
-			SIZE_WATER_LEVEL = 2.5;
+			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
+			SIZE_WATER_LEVEL = 0.1;
 			WIDTH = 128;
 			BOUNDS = SIZE_GROUND_WIDTH;
 			//
@@ -132,7 +131,7 @@
 				var normalMap0 = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Normal.jpg' );
 				var normalMap1 = new THREE.TextureLoader().load( '/static/texture/Water_2_M_Normal.jpg' );
 				water = new THREE.Water( waterGeometry, {
-					scale: 4.0,
+					scale: 8.0,
 					textureWidth: WIDTH,
 					textureHeight: WIDTH,
 					flowMap: flowMap,
@@ -140,10 +139,11 @@
 					normalMap0: normalMap0,
 					normalMap1: normalMap1,
 					alpha: 1,
-					color: 0xFFFFFF
+					color: 0xFFFFFF,
+					reflectivity:0.2
 				} );
 				water.position.y = SIZE_WATER_LEVEL;
-				water.rotation.x = Math.PI * - 0.5;
+				water.rotation.x = - Math.PI / 2;//Math.PI * - 0.5;
 				water.name = 'water';
 				scene.add( water );
 				createGPUCompute(sizeX*amplitude*speed, scale);
@@ -440,7 +440,7 @@
 			        geometry.vertices[i].z = (pixelList[i*4]+pixelList[i*4+1]+pixelList[i*4+2])/3;
 			    }
 
-			    geometry.scale(groundSize/tex.image.width, groundSize/tex.image.width, SIZE_MOUNTAIN_HEIGHT_SCALE*mountainSize/255);
+			    geometry.scale(groundSize/tex.image.width, groundSize/tex.image.width, mountainSize/255);
 
 			    geometry.computeFaceNormals();
 			    geometry.computeVertexNormals();
@@ -606,7 +606,7 @@
 					terrain.castShadow = true;
 					terrain.name = "terrain";
 					scene.add( terrain );
-					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.02, 0.025*5, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.002, 0.025*20, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
 
 					fluid = new SPHFluid(terrainForWaterCompute);
 				} );
@@ -763,7 +763,7 @@
 					  data: JSON.stringify(fluid.flowmapXZ), 
 					  dataType: "json" 
 					});
-					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.1, 0.025*5, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.01, 0.025*5, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
 
 			    }
 			});

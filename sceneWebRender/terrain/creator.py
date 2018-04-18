@@ -14,8 +14,8 @@ class heightMap:
 	__terrainMap = []
 
 	def __init__(self, size):
-		self.__sizeX = int(size[0])
-		self.__sizeY = int(size[1])
+		self.__sizeX = int(size[0])/1
+		self.__sizeY = int(size[1])/1
 		for x in range(0, self.__sizeX):
 			self.__heightMap.append([])
 			self.__noiseMap.append([])
@@ -119,7 +119,7 @@ class heightMap:
 				for y in range(2*int(By)-int(Ay), int(Ay)):
 					x = float(x)
 					y = float(y)
-					if x>=0 and x<baseMatrix.shape[0] and y>=0 and y<baseMatrix.shape[1]:
+					if x>=0 and x<baseMatrix.shape[0] and y>=0 and y<baseMatrix.shape[1] and self.__synthesizedMap[int(x)][int(y)]==0:
 						self.__planeMap[int(x)][int(y)] = 1
 
 	#terrain map
@@ -171,7 +171,7 @@ class heightMap:
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
 				if self.__planeMap[x][y]==1:
-					self.__synthesizedMap[x][y] = 25
+					self.__synthesizedMap[x][y] = max(5, self.__synthesizedMap[x][y])
 
 	def synthesizeTree(self):
 		for x in range(0, self.__sizeX):
