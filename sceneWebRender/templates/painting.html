@@ -8,76 +8,160 @@
 <script src="/static/bootstrap/js/bootstrap.js"></script>
 </head>
 <body>
-  <canvas id="canvas" style="position:absolute; z-index:2;"></canvas>
-  <img id="backgroundImage" src="/static/painting/{{paintingIndex}}.png" style="position:absolute; z-index:1;" height="700"><img>
-  <div class="btn-group" role="group" style="position:absolute; z-index:3">
-    <button id="newMountainBTN" type="button" class="btn btn-default" onclick="newMountain();">新建-山</button>
-    <button id="newPlaneBTN" type="button" class="btn btn-default" onclick="newPlane();">新建-地</button>
-    <button id="newHorizontalReferenceStrokeBTN" type="button" class="btn btn-default" onclick="newHorizontalReferenceStroke();">新建-参考线</button>
+  <div id="sketch" style="position:absolute; z-index:2;">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="painting" style="position:absolute; z-index:1;">
+    <img id="backgroundImage" src="/static/painting/{{paintingIndex}}.png" height="700"><img>
+  </div>
+
+  <div id="sketchControl" class="btn-group" role="group" style="position:absolute; z-index:3">
+    <button id="newMountainBTN" type="button" class="btn btn-default" onclick="newMountain();">新建-山-参考线</button>
+    <button id="newPlaneBTN" type="button" class="btn btn-default" onclick="newPlane();">新建-地-参考线</button>
     <button id="newHorizontalRidgeStrokeBTN" type="button" class="btn btn-default" onclick="newHorizontalRidgeStroke();">新建-水平边缘线</button>
     <button id="newVerticalRidgeStrokeBTN" type="button" class="btn btn-default" onclick="newVerticalRidgeStroke();">新建-垂直边缘线</button>
+    <button id="resetBTN" type="button" class="btn btn-default" onclick="reset();">取消当前对象</button>
     <button id="saveBTN" type="button" class="btn btn-default" onclick="save();">保存当前对象</button>
     <button id="submitBTN" type="button" class="btn btn-default">提交</button>
   </div>
+
+  <div id="result">
+    <div class="container">
+      <div id="notification"></div>
+      <div id="timeTable"></div>
+      <div id="inputInfoTable"></div>
+      <div id="downloadHeightMap"></div>
+      <div id="backToIndex"></div>
+    </div>
+  </div>
 </body>
 <script>
+        //first of all, we add format method to String for the utility
+        if(String.prototype.format)
+            console.warn("Overriding existing (String.prototype.format.");
+        String.prototype.format = function(args) {
+            var result = this;
+            if (arguments.length > 0) {
+                if (arguments.length == 1 && typeof (args) == "object") {
+                    for (var key in args) {
+                        if(args[key]!=undefined){
+                            var reg = new RegExp("({" + key + "})", "g");
+                            result = result.replace(reg, args[key]);
+                        }
+                    }
+                } else {
+                    for (var i = 0; i < arguments.length; i++) {
+                        if (arguments[i] != undefined) {
+                            var reg= new RegExp("({)" + i + "(})", "g");
+                            result = result.replace(reg, arguments[i]);
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+
+        //set global variables
         var pixelList = new Array();
         var currentStrokeStyle = '#000000';
         var currentObject;
-        var canvas;
-        var currentType;
+        var canvas = document.getElementById('canvas');;
+        var currentType = null;
 
-        $("#submitBTN").click(function() {
-          $("#request-process-patent").html("正在提交数据，请勿关闭当前窗口...");
-          $.ajax({
-              type: "POST",
-              url: "/achieveSketch",
-              data: JSON.stringify({'pixel': pixelList, 'size':{'width':canvas.width, 'height':canvas.height}}),
-              dataType: "json",
-              success: function (message) {
-                  if (message > 0) {
-                      alert("请求已提交！我们会尽快与您取得联系");
-                  }
-              },
-              error: function (message) {
-                  $("#request-process-patent").html("提交数据失败！");
-              }
-          });
-      });
+        function main() {
+          refreshCanvas();
+          initDrawingLogicalPath();
+        }
+
+        function initDrawingLogicalPath() {
+          document.getElementById("newMountainBTN").disabled = false;
+          document.getElementById("newPlaneBTN").disabled = false;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
+          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+          document.getElementById("resetBTN").disabled = true;
+          document.getElementById("saveBTN").disabled = true;
+          document.getElementById("submitBTN").disabled = true;
+        }
+
+        function setDrawingLogicalPath(currentState) {
+          //we using button "disabled interface" to force the logical path
+          if (currentState=="newHorizontalReferenceStroke") {
+            document.getElementById("newMountainBTN").disabled = true;
+            document.getElementById("newPlaneBTN").disabled = true;
+            document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
+            if (currentType=="mountain"){
+              document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
+            } else if (currentType=="plane") { //we do not need VerticalRidgeStroke when we draw a plane
+              document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+            }
+            document.getElementById("resetBTN").disabled = false;
+            document.getElementById("saveBTN").disabled = true;
+            document.getElementById("submitBTN").disabled = true;
+
+          } else if (currentState=="newHorizontalRidgeStroke") {
+            document.getElementById("newMountainBTN").disabled = true;
+            document.getElementById("newPlaneBTN").disabled = true;
+            document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
+            if (currentType=="mountain"){
+              document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
+            } else if (currentType=="plane") { //we do not need VerticalRidgeStroke when we draw a plane
+              document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+            }
+            document.getElementById("resetBTN").disabled = false;
+            document.getElementById("saveBTN").disabled = false;
+            document.getElementById("submitBTN").disabled = true;
+
+          } else if (currentState=="newVerticalRidgeStroke") {
+            document.getElementById("newMountainBTN").disabled = true;
+            document.getElementById("newPlaneBTN").disabled = true;
+            document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
+            document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
+            document.getElementById("resetBTN").disabled = false;
+            document.getElementById("saveBTN").disabled = false;
+            document.getElementById("submitBTN").disabled = true;
+
+          } else if (currentState=="reset") {
+            initDrawingLogicalPath();
+
+          } else if (currentState=="save") {
+            document.getElementById("newMountainBTN").disabled = false;
+            document.getElementById("newPlaneBTN").disabled = false;
+            document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
+            document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+            document.getElementById("resetBTN").disabled = true;
+            document.getElementById("saveBTN").disabled = true;
+            document.getElementById("submitBTN").disabled = false;
+          }
+        }
 
         function newMountain() {
+          //we draw HorizontalReferenceStroke after we new a mountain object by default
           refreshCanvas();
           currentObject = new Object();
           currentObject['horizontalReference'] = new Array();
           currentObject['horizontalRidge'] = new Array();
           currentObject['verticalRidge'] = new Array();
           currentType = 'mountain';
-          document.getElementById("newMountainBTN").disabled = true;
-          document.getElementById("newPlaneBTN").disabled = true;
-          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = false;
-          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
-          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
-          document.getElementById("saveBTN").disabled = true;
-          document.getElementById("submitBTN").disabled = true;
+          newHorizontalReferenceStroke();
         }
 
         function newPlane() {
+          //we draw HorizontalReferenceStroke after we new a plane object by default
           refreshCanvas();
           currentObject = new Object();
           currentObject['horizontalReference'] = new Array();
           currentObject['horizontalRidge'] = new Array();
           currentObject['verticalRidge'] = new Array();
           currentType = 'plane';
-          document.getElementById("newMountainBTN").disabled = true;
-          document.getElementById("newPlaneBTN").disabled = true;
-          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
-          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = false;
-          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
-          document.getElementById("saveBTN").disabled = true;
-          document.getElementById("submitBTN").disabled = true;
+          newHorizontalReferenceStroke();
         }
 
         function newHorizontalReferenceStroke() {
+          //our stoke types are horizontalReference, horizontalRidge and verticalRidge.
+          //using R/G/B to distinguish the types of stoke.
+          //using number of R to distinguish different stoke of the same type.
           var R = parseInt(currentStrokeStyle.slice(1, 3), 16);
           var G = parseInt(currentStrokeStyle.slice(3, 5), 16);
           var B = parseInt(currentStrokeStyle.slice(5, 7), 16);
@@ -91,20 +175,13 @@
           console.warn(context.strokeStyle);
           context.beginPath();
 
-          document.getElementById("newMountainBTN").disabled = true;
-          document.getElementById("newPlaneBTN").disabled = true;
-          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = false;
-          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
-          if (currentType=="mountain"){
-            document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
-          } else if (currentType=="plane") {
-            document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
-          }
-          document.getElementById("saveBTN").disabled = true;
-          document.getElementById("submitBTN").disabled = true;
+          setDrawingLogicalPath("newHorizontalReferenceStroke");
         }
 
         function newHorizontalRidgeStroke() {
+          //our stoke types are horizontalReference, horizontalRidge and verticalRidge.
+          //using R/G/B to distinguish the types of stoke.
+          //using number of R to distinguish different stoke of the same type.
           var R = parseInt(currentStrokeStyle.slice(1, 3), 16);
           var G = parseInt(currentStrokeStyle.slice(3, 5), 16);
           var B = parseInt(currentStrokeStyle.slice(5, 7), 16);
@@ -118,20 +195,13 @@
           console.warn(context.strokeStyle);
           context.beginPath();
 
-          document.getElementById("newMountainBTN").disabled = true;
-          document.getElementById("newPlaneBTN").disabled = true;
-          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = true;
-          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
-          if (currentType=="mountain"){
-            document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
-          } else if (currentType=="plane") {
-            document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
-          }
-          document.getElementById("saveBTN").disabled = false;
-          document.getElementById("submitBTN").disabled = true;
+          setDrawingLogicalPath("newHorizontalRidgeStroke");
         }
 
         function newVerticalRidgeStroke() {
+          //our stoke types are horizontalReference, horizontalRidge and verticalRidge.
+          //using R/G/B to distinguish the types of stoke.
+          //using number of R to distinguish different stoke of the same type.
           var R = parseInt(currentStrokeStyle.slice(1, 3), 16);
           var G = parseInt(currentStrokeStyle.slice(3, 5), 16);
           var B = parseInt(currentStrokeStyle.slice(5, 7), 16);
@@ -145,13 +215,18 @@
           console.warn(context.strokeStyle);
           context.beginPath();
 
-          document.getElementById("newMountainBTN").disabled = true;
-          document.getElementById("newPlaneBTN").disabled = true;
-          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = true;
-          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
-          document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
-          document.getElementById("saveBTN").disabled = false;
-          document.getElementById("submitBTN").disabled = true;
+          setDrawingLogicalPath("newVerticalRidgeStroke");
+        }
+
+        function reset() {
+          refreshCanvas();
+          currentObject = new Object();
+          currentObject['horizontalReference'] = new Array();
+          currentObject['horizontalRidge'] = new Array();
+          currentObject['verticalRidge'] = new Array();
+          currentType = null;
+
+          setDrawingLogicalPath("reset");
         }
 
         function save() {
@@ -167,17 +242,10 @@
             newMountain();
           }
 
-          document.getElementById("newMountainBTN").disabled = false;
-          document.getElementById("newPlaneBTN").disabled = false;
-          document.getElementById("saveBTN").disabled = true;
-          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = true;
-          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
-          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
-          document.getElementById("submitBTN").disabled = false;
+          setDrawingLogicalPath("save");
         }
 
         function refreshCanvas() {
-          canvas = document.getElementById('canvas');
           var bgImg = document.getElementById('backgroundImage');
           if(canvas.getContext){        
             context = canvas.getContext('2d');   
@@ -245,26 +313,180 @@
           return pixelDict;
         }
 
-        refreshCanvas();
-        canvas.onmousedown = function(e){      
-          e.preventDefault();
-          var x = e.clientX - canvas.offsetLeft;        
-          var y = e.clientY - canvas.offsetTop;        
-          context.moveTo(x,y);        
-          canvas.onmousemove = function(e){            
-            e.preventDefault();
-            if (e.clientX>canvas.width||e.clientY>canvas.height||e.clientX<0||e.clientY<0) {
-              canvas.onmousemove = null;
-            } else {
-              var x = e.clientX - canvas.offsetLeft;            
-              var y = e.clientY - canvas.offsetTop;    
-              context.lineTo(x,y);   
-              context.stroke();
-            }    
-          };        
-          canvas.onmouseup = function(e){            
-            canvas.onmousemove = null;
-          };    
+
+        function download(){ 
+          var type ='png';
+          var d = document.getElementById("heightmap");
+          var imgdata=d.toDataURL(type);
+          var fixtype=function(type){
+              type=type.toLocaleLowerCase().replace(/jpg/i,'jpeg');
+              var r=type.match(/png|jpeg|bmp|gif/)[0];
+              return 'image/'+r;
+          };
+          imgdata=imgdata.replace(fixtype(type),'image/octet-stream');
+          var saveFile=function(data,filename)
+          {
+              var save_link=document.createElementNS('http://www.w3.org/1999/xhtml', 'a');
+              save_link.href=data;
+              save_link.download=filename;
+              var event=document.createEvent('MouseEvents');
+              event.initMouseEvent('click',true,false,window,0,0,0,0,0,false,false,false,false,0,null);
+              save_link.dispatchEvent(event);
+          };
+          var filename=''+new Date().getDate()+'.'+type;  
+          saveFile(imgdata,filename);
         };
+
+        function createNotificationDom(text, type) {
+          var panel = document.getElementById("notification");
+          panel.innerHTML = `
+            <div class="alert alert-{1}" role="alert">{0}</div>
+          `.format(text, type);
+        }
+
+        function backToIndexDom(text, type) {
+          var panel = document.getElementById("backToIndex");
+          panel.innerHTML = `
+            <div class="page-header">
+                <h4><a href="/">下载高度图文件后，请点击我返回主页</a></h4>  
+            </div>
+          `.format(text, type);
+        }
+
+        function createTimeLogTable(timeLog) {
+          tableHeadHTML = "<tr>"
+          for (var timeType in timeLog) {
+            tableHeadHTML = tableHeadHTML + `
+              <th>{0}</th>
+            `.format(timeType+" (秒)");
+          }
+          tableHeadHTML = tableHeadHTML + "</tr>"
+
+          tableInstanceHTML = "<tr>"
+          for (var timeType in timeLog) {
+            tableHeadHTML = tableHeadHTML + `
+              <th>{0}</th>
+            `.format(timeLog[timeType]);
+          }
+          tableInstanceHTML = tableInstanceHTML + "</tr>"
+
+          var panel = document.getElementById("timeTable");
+          panel.innerHTML = `
+            <div class="page-header">
+                <h4>时间统计表</h4>  
+            </div>
+            <table class="table table-bordered">
+              {0}{1}
+            </table>
+          `.format(tableHeadHTML, tableInstanceHTML);
+        }
+
+        function createInputInfoLogTable(dataLog) {
+          tableHeadHTML = "<tr>"
+          for (var dataType in dataLog) {
+            tableHeadHTML = tableHeadHTML + `
+              <th>{0}</th>
+            `.format(dataType+" (像素)");
+          }
+          tableHeadHTML = tableHeadHTML + "</tr>"
+
+          tableInstanceHTML = "<tr>"
+          for (var dataType in dataLog) {
+            tableHeadHTML = tableHeadHTML + `
+              <th>{0}</th>
+            `.format(dataLog[dataType]);
+          }
+          tableInstanceHTML = tableInstanceHTML + "</tr>"
+
+          var panel = document.getElementById("inputInfoTable");
+          panel.innerHTML = `
+            <div class="page-header">
+                <h4>输入数据信息表</h4>  
+            </div>
+            <table class="table table-bordered">
+              {0}{1}
+            </table>
+          `.format(tableHeadHTML, tableInstanceHTML);
+        }
+
+
+        function createDownloadHeightMapLink(heightMap) {
+          var panel = document.getElementById("downloadHeightMap");
+          panel.innerHTML = `
+            <div class="page-header">
+                <h4>高度图</h4><small>请点击图片下载文件</small>
+            </div>
+            <canvas id="heightmap" width="{0}" height="{1}" onclick="download();"></canvas>
+          `.format(heightMap.length, heightMap[0].length);
+
+          var c = document.getElementById("heightmap");
+          var ctx = c.getContext("2d");
+          ctx.fillStyle="#000000";
+          var imgData=ctx.createImageData(heightMap.length, heightMap[0].length);
+          var count = 0;
+          for (var i=0;i<imgData.data.length;i+=4) {
+            var grey = heightMap[count%heightMap.length][Math.floor(count/heightMap.length)];
+            imgData.data[i+0]=parseInt(grey);
+            imgData.data[i+1]=parseInt(grey);
+            imgData.data[i+2]=parseInt(grey);
+            imgData.data[i+3]=255;
+            count = count + 1;
+          }
+          ctx.putImageData(imgData,0,0);
+
+        }
+
+        function clearDom(domID) {
+          var panel = document.getElementById(domID);
+          panel.innerHTML = "";
+        }
+
+        $("#submitBTN").click(function() {
+          clearDom("sketch");
+          clearDom("painting");
+          clearDom("sketchControl");
+          createNotificationDom("计算中......", "info");
+          $.ajax({
+            type: "POST",
+            url: "/achieveSketch",
+            data: JSON.stringify({'pixel': pixelList, 'size':{'width':canvas.width, 'height':canvas.height}}),
+            dataType: "json",
+            success: function (message) {
+                createNotificationDom("完成", "success");
+                createTimeLogTable(message['time']);
+                createInputInfoLogTable(message['inputInfoLog']);
+                createDownloadHeightMapLink(message['heightmap']);
+                backToIndexDom();
+            },
+            error: function (message) {
+              createNotificationDom("失败", "danger")
+            }
+          });
+        });
+
+        canvas.onmousedown = function(e){    
+          if (currentType!=null) {
+            e.preventDefault();
+            var x = e.clientX - canvas.offsetLeft;        
+            var y = e.clientY - canvas.offsetTop;        
+            context.moveTo(x,y);        
+            canvas.onmousemove = function(e){            
+              e.preventDefault();
+              if (e.clientX>canvas.width||e.clientY>canvas.height||e.clientX<0||e.clientY<0) {
+                canvas.onmousemove = null;
+              } else {
+                var x = e.clientX - canvas.offsetLeft;            
+                var y = e.clientY - canvas.offsetTop;    
+                context.lineTo(x,y);   
+                context.stroke();
+              }    
+            };        
+            canvas.onmouseup = function(e){            
+              canvas.onmousemove = null;
+            }; 
+          }   
+        };
+
+        main();
 </script>
 </html>

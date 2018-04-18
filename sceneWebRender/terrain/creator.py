@@ -6,12 +6,10 @@ class heightMap:
 	__noiseMap = []
 	__heightMap = []
 	__planeMap = []
-	__treeMap = []
 	__synthesizedMap = []
 	__sizeX = None
 	__sizeY = None
 	__randomScale = 1
-	__terrainMap = []
 
 	def __init__(self, size):
 		self.__sizeX = int(size[0])/1
@@ -20,59 +18,14 @@ class heightMap:
 			self.__heightMap.append([])
 			self.__noiseMap.append([])
 			self.__planeMap.append([])
-			self.__treeMap.append([])
-			self.__terrainMap.append([])
 			self.__synthesizedMap.append([])
 			for y in range(0, self.__sizeY):
 				self.__heightMap[x].append(0)
 				self.__noiseMap[x].append(0)
 				self.__planeMap[x].append(0)
-				self.__treeMap[x].append(0)
-				self.__terrainMap[x].append(0)
 				self.__synthesizedMap[x].append(0)
 
-	#noise map
-	def smoothNoise(self, gaussianBlurRadius):
-		tmp = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
-		tmpData = tmp.load()
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				tmpData[x, y] = int(self.__noiseMap[x][y])
-		tmpData = tmp.filter(ImageFilter.GaussianBlur(radius=gaussianBlurRadius)).load()
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				self.__noiseMap[x][y] = tmpData[x, y]
-
-
-	def createNoiseForMountains(self, intensity, upperBound):
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				if self.__heightMap[x][y]>0:
-					self.__noiseMap[x][y] = random.uniform(upperBound-intensity, upperBound)
-
-	#tree map
-	def createTree(self, intensity, topLine, rare):
-		count = 0
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				if self.__heightMap[x][y]>30*self.__randomScale and count%(rare)==0:
-					self.__treeMap[x][y] = (random.uniform(0, intensity))
-				count = count + 1
-
 	#mountain map
-	def adjustMountains(self, upperBound):
-		tmpHeightest = 0
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				if self.__heightMap[x][y]>tmpHeightest:
-					tmpHeightest = self.__heightMap[x][y]
-
-		tmpScale = float(255)/tmpHeightest
-		print 'scaling', tmpScale
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				self.__heightMap[x][y] = self.__heightMap[x][y]*tmpScale
-
 	def createMountains(self, mountainsDescription):
 		baseMatrix = numpy.zeros((self.__sizeX, self.__sizeY))
 		print 'creating mountains...'
@@ -101,10 +54,19 @@ class heightMap:
 			for y in range(0, self.__sizeY):
 				self.__heightMap[x][y] = self.__heightMap[x][y] + baseMatrix[int(x), int(y)]
 
-	def createMountainForTest(self):
+	def adjustMountains(self, upperBound):
+		tmpHeightest = 0
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
-				self.__heightMap[x][y] = self.__heightMap[x][y] + self.__sizeY - y
+				if self.__heightMap[x][y]>tmpHeightest:
+					tmpHeightest = self.__heightMap[x][y]
+
+		tmpScale = float(255)/tmpHeightest
+		print 'scaling', tmpScale
+		for x in range(0, self.__sizeX):
+			for y in range(0, self.__sizeY):
+				self.__heightMap[x][y] = self.__heightMap[x][y]*tmpScale
+
 
 	def createPlanes(self, planesDescription):
 		baseMatrix = numpy.zeros((self.__sizeX, self.__sizeY))
@@ -122,21 +84,6 @@ class heightMap:
 					if x>=0 and x<baseMatrix.shape[0] and y>=0 and y<baseMatrix.shape[1] and self.__synthesizedMap[int(x)][int(y)]==0:
 						self.__planeMap[int(x)][int(y)] = 1
 
-	#terrain map
-	def exportTerrainMap(self, path):
-		tmp = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
-		tmpData = tmp.load()
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				if self.__planeMap[x][y]==1:
-					tmpData[x, y] = 100
-				elif self.__heightMap[x][y]!=0:
-					tmpData[x, y] = 200
-				else:
-					tmpData[x, y] = 0
-		tmp.save(path)
-
-	#synthesize
 	def smoothSynthesize(self, gaussianBlurRadius):
 		tmp = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
 		tmpData = tmp.load()
@@ -151,15 +98,20 @@ class heightMap:
 			for y in range(0, self.__sizeY):
 				self.__synthesizedMap[x][y] = tmpData[x, y]
 
-	def synthesizeNoise(self):
+	def createNoise(self, intensity, upperBound, gaussianBlurRadius):
+		tmp = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
+		tmpData = tmp.load()
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
-				if self.__planeMap[x][y]==0:
-					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y] + self.__noiseMap[x][y]
-				else:
-					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y]
+				tmpData[x, y] = int(random.uniform(upperBound-intensity, upperBound))
 
-	def synthesizeMountains(self):
+		tmpData = tmp.filter(ImageFilter.GaussianBlur(radius=gaussianBlurRadius)).load()
+		for x in range(0, self.__sizeX):
+			for y in range(0, self.__sizeY):
+				self.__noiseMap[x][y] = tmpData[x, y]
+
+	#synthesize
+	def synthesizeMountain(self):
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
 				if self.__planeMap[x][y]==0:
@@ -167,19 +119,22 @@ class heightMap:
 				else:
 					self.__synthesizedMap[x][y] = self.__planeMap[x][y]
 
-	def synthesizePlanes(self):
+	def synthesizePlane(self):
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
 				if self.__planeMap[x][y]==1:
+					#keep mountain if there has the pixel of mountain. mountain.h > plane.h
 					self.__synthesizedMap[x][y] = max(5, self.__synthesizedMap[x][y])
 
-	def synthesizeTree(self):
+	def synthesizeNoise(self):
 		for x in range(0, self.__sizeX):
 			for y in range(0, self.__sizeY):
 				if self.__planeMap[x][y]==0:
-					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y] + self.__treeMap[x][y]
+					#only add noise for mountain
+					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y] + self.__noiseMap[x][y]
 				else:
-					self.__synthesizedMap[x][y] = self.__planeMap[x][y]
+					self.__synthesizedMap[x][y] = self.__synthesizedMap[x][y]
+
 	#save
 	def saveSynthesizedMap(self, path):
 		image_tmp = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
@@ -189,10 +144,5 @@ class heightMap:
 				tmp[x, y] = int(self.__synthesizedMap[x][y])
 		image_tmp.save(path)
 
-	def saveMountainMap(self, path):
-		image_tmp = Image.new("RGB", (self.__sizeX, self.__sizeY), "white").convert("L")
-		tmp = image_tmp.load()
-		for x in range(0, self.__sizeX):
-			for y in range(0, self.__sizeY):
-				tmp[x, y] = int(self.__heightMap[x][y])
-		image_tmp.save(path)
+	def getHeightMap(self):
+		return self.__synthesizedMap
