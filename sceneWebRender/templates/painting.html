@@ -9,15 +9,15 @@
 </head>
 <body>
   <canvas id="canvas" style="position:absolute; z-index:2;"></canvas>
-  <img id="backgroundImage" src="/static/painting/10.png" style="position:absolute; z-index:1;" height="700"><img>
-  <div class="btn-group" role="group" aria-label="..." style="position:absolute; z-index:3">
-    <button type="button" class="btn btn-default" onclick="newMountain();">New Mountain</button>
-    <button type="button" class="btn btn-default" onclick="newPlane();">New Plane</button>
-    <button type="button" class="btn btn-default" onclick="newHorizontalReferenceStroke();">newHorizontalReferenceStroke</button>
-    <button type="button" class="btn btn-default" onclick="newHorizontalRidgeStroke();">newHorizontalRidgeStroke</button>
-    <button type="button" class="btn btn-default" onclick="newVerticalRidgeStroke();">newVerticalRidgeStroke</button>
-    <button type="button" class="btn btn-default" onclick="save();">Save</button>
-    <button type="button" class="btn btn-default" id="submitBTN">Submit</button>
+  <img id="backgroundImage" src="/static/painting/{{paintingIndex}}.png" style="position:absolute; z-index:1;" height="700"><img>
+  <div class="btn-group" role="group" style="position:absolute; z-index:3">
+    <button id="newMountainBTN" type="button" class="btn btn-default" onclick="newMountain();">新建-山</button>
+    <button id="newPlaneBTN" type="button" class="btn btn-default" onclick="newPlane();">新建-地</button>
+    <button id="newHorizontalReferenceStrokeBTN" type="button" class="btn btn-default" onclick="newHorizontalReferenceStroke();">新建-参考线</button>
+    <button id="newHorizontalRidgeStrokeBTN" type="button" class="btn btn-default" onclick="newHorizontalRidgeStroke();">新建-水平边缘线</button>
+    <button id="newVerticalRidgeStrokeBTN" type="button" class="btn btn-default" onclick="newVerticalRidgeStroke();">新建-垂直边缘线</button>
+    <button id="saveBTN" type="button" class="btn btn-default" onclick="save();">保存当前对象</button>
+    <button id="submitBTN" type="button" class="btn btn-default">提交</button>
   </div>
 </body>
 <script>
@@ -52,6 +52,13 @@
           currentObject['horizontalRidge'] = new Array();
           currentObject['verticalRidge'] = new Array();
           currentType = 'mountain';
+          document.getElementById("newMountainBTN").disabled = true;
+          document.getElementById("newPlaneBTN").disabled = true;
+          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = false;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
+          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+          document.getElementById("saveBTN").disabled = true;
+          document.getElementById("submitBTN").disabled = true;
         }
 
         function newPlane() {
@@ -61,6 +68,13 @@
           currentObject['horizontalRidge'] = new Array();
           currentObject['verticalRidge'] = new Array();
           currentType = 'plane';
+          document.getElementById("newMountainBTN").disabled = true;
+          document.getElementById("newPlaneBTN").disabled = true;
+          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = false;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
+          document.getElementById("saveBTN").disabled = true;
+          document.getElementById("submitBTN").disabled = true;
         }
 
         function newHorizontalReferenceStroke() {
@@ -76,6 +90,18 @@
           context.strokeStyle = currentStrokeStyle;
           console.warn(context.strokeStyle);
           context.beginPath();
+
+          document.getElementById("newMountainBTN").disabled = true;
+          document.getElementById("newPlaneBTN").disabled = true;
+          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = false;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
+          if (currentType=="mountain"){
+            document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
+          } else if (currentType=="plane") {
+            document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+          }
+          document.getElementById("saveBTN").disabled = true;
+          document.getElementById("submitBTN").disabled = true;
         }
 
         function newHorizontalRidgeStroke() {
@@ -91,6 +117,18 @@
           context.strokeStyle = currentStrokeStyle;
           console.warn(context.strokeStyle);
           context.beginPath();
+
+          document.getElementById("newMountainBTN").disabled = true;
+          document.getElementById("newPlaneBTN").disabled = true;
+          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = true;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
+          if (currentType=="mountain"){
+            document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
+          } else if (currentType=="plane") {
+            document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+          }
+          document.getElementById("saveBTN").disabled = false;
+          document.getElementById("submitBTN").disabled = true;
         }
 
         function newVerticalRidgeStroke() {
@@ -106,6 +144,14 @@
           context.strokeStyle = currentStrokeStyle;
           console.warn(context.strokeStyle);
           context.beginPath();
+
+          document.getElementById("newMountainBTN").disabled = true;
+          document.getElementById("newPlaneBTN").disabled = true;
+          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = true;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = false;
+          document.getElementById("newVerticalRidgeStrokeBTN").disabled = false;
+          document.getElementById("saveBTN").disabled = false;
+          document.getElementById("submitBTN").disabled = true;
         }
 
         function save() {
@@ -120,6 +166,14 @@
             console.warn(pixelList);
             newMountain();
           }
+
+          document.getElementById("newMountainBTN").disabled = false;
+          document.getElementById("newPlaneBTN").disabled = false;
+          document.getElementById("saveBTN").disabled = true;
+          document.getElementById("newHorizontalReferenceStrokeBTN").disabled = true;
+          document.getElementById("newHorizontalRidgeStrokeBTN").disabled = true;
+          document.getElementById("newVerticalRidgeStrokeBTN").disabled = true;
+          document.getElementById("submitBTN").disabled = false;
         }
 
         function refreshCanvas() {

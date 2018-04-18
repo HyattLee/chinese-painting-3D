@@ -7,13 +7,18 @@ from water import flowmap
 
 app = Flask(__name__)
 
+@app.route("/", methods=['GET'])
+def index():
+	return render_template('index.html'), 201
+
 @app.route("/scene", methods=['GET'])
 def scene():
 	return render_template('scene.html'), 201
 
 @app.route("/painting", methods=['GET'])
 def painting():
-	return render_template('painting.html'), 201
+	index = int(request.args['paintingIndex'].encode("utf-8"))
+	return render_template('painting.html', paintingIndex=index), 201
 
 @app.route("/waterflow", methods=['GET'])
 def waterflow():
