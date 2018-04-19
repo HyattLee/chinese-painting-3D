@@ -47,11 +47,6 @@ def achieveSketch():
 	time_createNoise = time.time()-time_start
 
 	time_total = time.time()-time_start0
-	"""
-	HM.saveSynthesizedMap("/home/kakaiu/chinese-painting-3D/sceneWebRender/static/terrain/heightMap.png")
-	"""
-
-	#finalHeightmap = HM.getHeightMap()
 
 	timeLog = {
 		"total":round(time_total, timeLogPrecision),
@@ -68,6 +63,19 @@ def achieveSketch():
 		"total":data['size']['width']*data['size']['height']}
 
 	return jsonify({'time':timeLog, 'inputInfoLog':inputInfoLog, 'heightmap':finalHeightmap})
+
+@app.route("/parseFlowMap", methods=['POST'])
+def parseFlowMap():
+	flowmapXZ = request.get_data()
+	print flowmapXZ
+	flowmap.generate(json.loads(flowmapXZ))
+	return jsonify({'success':True}), 201
+
+
+@app.route("/waterFlowCreator", methods=['GET'])
+def waterFlowCreator():
+	return render_template('waterFlowCreator.html'), 201
+
 
 @app.route("/scene", methods=['GET'])
 def scene():
@@ -89,12 +97,9 @@ def sph():
 def terrain():
 	return render_template('terrain.html'), 201
 
-@app.route("/parseFlowMap", methods=['POST'])
-def parseFlowMap():
-	flowmapXZ = request.get_data()
-	flowmap.generate(json.loads(flowmapXZ))
-
-	return jsonify({'success':True}), 201
+@app.route("/drawLineIn3D", methods=['GET'])
+def drawLineIn3D():
+	return render_template('interactiveDraw3DLine.html'), 201
 
 if __name__ == '__main__':
 	app.run(host='0.0.0.0',port=5000)

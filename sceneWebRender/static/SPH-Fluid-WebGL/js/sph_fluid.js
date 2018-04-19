@@ -5,7 +5,7 @@ Navier-Stokes equations
 */
 
 class SPHFluid {
-  constructor(terrain) {
+  constructor(terrain, particleR) {
     // Physical attrs
     //this.numParticles = 500;
     this.viscousity = 0.00001* 900 * 5;
@@ -23,7 +23,7 @@ class SPHFluid {
       }
     }
 
-    this.PARTICLE_RADIUS = 3*2/2; // h/2
+    this.PARTICLE_RADIUS = particleR;
 
     this.particles_ = [];
     this.numParticles = 0;
@@ -67,7 +67,7 @@ class SPHFluid {
   addParticles(pos_start, pos_end, move_dir, move_speed) {
     var tmp = this.calculatexyz(pos_start, pos_end);
     var tmp2 = this.calculatexyzSpeed(move_dir, move_speed);
-    var currentNumParticles = Math.sqrt(Math.pow(pos_start[0]-pos_end[0],2)+Math.pow(pos_start[1]-pos_end[1],2)+Math.pow(pos_start[2]-pos_end[2],2))/this.PARTICLE_RADIUS;
+    var currentNumParticles = Math.round(Math.sqrt(Math.pow(pos_start[0]-pos_end[0],2)+Math.pow(pos_start[1]-pos_end[1],2)+Math.pow(pos_start[2]-pos_end[2],2))/this.PARTICLE_RADIUS/2);
 
     var fromID = this.numParticles;
     this.numParticles = this.numParticles + currentNumParticles;
@@ -110,7 +110,20 @@ class SPHFluid {
     if (tmpZ!=0) {
       tmpz = 2*this.PARTICLE_RADIUS/Math.sqrt(Math.pow(tmpX/tmpZ, 2)+1+Math.pow(tmpY/tmpZ, 2));
     }
-    return [tmpx, tmpy, tmpz];
+
+    var tmpA = 0;
+    var tmpB = 0;
+    var tmpC = 0;
+    if (tmpX!=0) {
+      tmpA = tmpx*tmpX/Math.abs(tmpX);
+    }
+    if (tmpY!=0) {
+      tmpB = tmpy*tmpY/Math.abs(tmpY);
+    }
+    if (tmpZ!=0) {
+      tmpC = tmpz*tmpZ/Math.abs(tmpZ);
+    }
+    return [tmpA, tmpB, tmpC];
   }
 
   calculatexyzSpeed(move_dir, move_speed) {
@@ -218,13 +231,17 @@ class SPHFluid {
       directXZ = [255*tmpdeltaX/tmplengthXZ, 255*tmpdeltaZ/tmplengthXZ];
       newPositions.push(this.particles_[i].position);
 
-      var tmpx0 = Math.round(this.particles_[i].position.x)+this.terrain['BOUND'][0]/2;
-      var tmpz0 = Math.round(this.particles_[i].position.z)+this.terrain['BOUND'][1]/2;
+      var tmpx0 = Math.round(this.particles_[i].position.x + this.terrain['BOUND'][0]/2);
+      var tmpz0 = Math.round(this.particles_[i].position.z + this.terrain['BOUND'][1]/2);
       for (var ix=-this.PARTICLE_RADIUS; ix<this.PARTICLE_RADIUS; ix++) {
         for (var iz=-this.PARTICLE_RADIUS; iz<this.PARTICLE_RADIUS; iz++) {
           if (tmpx0+ix>=0 && tmpz0+iz>=0) {
-            if (this.flowmapXZ[tmpx0+ix][tmpz0+iz][0]==0 && this.flowmapXZ[tmpx0+ix][tmpz0+iz][1]==0) {
-              this.flowmapXZ[tmpx0+ix][tmpz0+iz] = directXZ;
+            if (this.flowmapXZ[tmpx0+ix]!=undefined) {
+              if (this.flowmapXZ[tmpx0+ix][tmpz0+iz]!=undefined) {
+                if (this.flowmapXZ[tmpx0+ix][tmpz0+iz][0]==0 && this.flowmapXZ[tmpx0+ix][tmpz0+iz][1]==0) {
+                  this.flowmapXZ[tmpx0+ix][tmpz0+iz] = directXZ;
+                }
+              }
             }
           }
         }

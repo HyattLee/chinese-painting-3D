@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - geometry - catmull spline editor</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				top: 0px;
+				width: 100%;
+				padding: 5px;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="container"></div>
+		<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - geometry - catmull spline editor</div>
+
+		<script src="/static/threejs/three.js"></script>
+		<script src="/static/threejs/DragControls.js"></script>
+		<script src="/static/threejs/OrbitControls.js"></script>
+		<script src="/static/threejs/TransformControls.js"></script>
+
+		<script>
+
+			var container, camera, scene, renderer;
+
+			function initBackground() {
+				container = document.getElementById( 'container' );
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xf0f0f0 );
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.set( 0, 250, 1000 );
+				scene.add( camera );
+				scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
+				var light = new THREE.SpotLight( 0xffffff, 1.5 );
+				light.position.set( 0, 1500, 200 );
+				scene.add( light );
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );	
+				container.appendChild( renderer.domElement );
+			}
+
+			//**********************
+			var controls, transformControl, dragcontrols;
+			var splineHelperObjects = []
+			var splineOutline;
+			var splinePointsLength = 4;
+			var splineNodePositions = [];
+
+			var arc_segment = 200;
+			var splines = {};
+
+			var hiding;
+			function delayHideTransform() {
+				cancelHideTransorm();
+				hideTransform();
+			}
+			function hideTransform() {
+				hiding = setTimeout( function() {
+					transformControl.detach( transformControl.object );
+				}, 2500 )
+			}
+			function cancelHideTransorm() {
+				if ( hiding ) clearTimeout( hiding );
+			}
+			function initControl() {
+				// Controls
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.damping = 0.2;
+				controls.addEventListener( 'change', render );
+				controls.addEventListener( 'start', function() {
+					cancelHideTransorm();
+				} );
+				controls.addEventListener( 'end', function() {
+					delayHideTransform();
+				} );
+
+				transformControl = new THREE.TransformControls( camera, renderer.domElement );
+				transformControl.addEventListener( 'change', render );
+				scene.add( transformControl );
+				// Hiding transform situation is a little in a mess :()
+				transformControl.addEventListener( 'change', function( e ) {
+					cancelHideTransorm();
+				} );
+				transformControl.addEventListener( 'mouseDown', function( e ) {
+					cancelHideTransorm();
+				} );
+				transformControl.addEventListener( 'mouseUp', function( e ) {
+					delayHideTransform();
+				} );
+				transformControl.addEventListener( 'objectChange', function( e ) {
+					updateSplineOutline();
+				} );
+
+				dragcontrols = new THREE.DragControls( splineHelperObjects, camera, renderer.domElement ); //
+				dragcontrols.enabled = false;
+				dragcontrols.addEventListener( 'hoveron', function ( event ) {
+					transformControl.attach( event.object );
+					cancelHideTransorm();
+				} );
+				dragcontrols.addEventListener( 'hoveroff', function ( event ) {
+					delayHideTransform();
+				} );
+			}
+
+			function addSplineObject( position ) {
+				var geometry = new THREE.BoxBufferGeometry( 20, 20, 20 );
+				var material = new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } );
+				var object = new THREE.Mesh( geometry, material );
+				if ( position ) {
+					object.position.copy( position );
+				} else {
+					object.position.x = Math.random() * 1000 - 500;
+					object.position.y = Math.random() * 600;
+					object.position.z = Math.random() * 800 - 400;
+				}
+				object.castShadow = true;
+				object.receiveShadow = true;
+				scene.add( object );
+				splineHelperObjects.push( object );
+				return object;
+			}
+
+			function updateSplineOutline() {
+				var point = new THREE.Vector3();
+				for ( var k in splines ) {
+					var spline = splines[ k ];
+					var splineMesh = spline.mesh;
+					var position = splineMesh.geometry.attributes.position;
+					for ( var i = 0; i < arc_segment; i ++ ) {
+						var t = i /  ( arc_segment - 1 );
+						spline.getPoint( t, point );
+						position.setXYZ( i, point.x, point.y, point.z );
+					}
+					position.needsUpdate = true;
+				}
+			}
+
+			function initCurve() {
+				for ( var i = 0; i < splinePointsLength; i ++ ) {
+					addSplineObject( splineNodePositions[ i ] );
+				}
+				splineNodePositions = [];
+				for ( var i = 0; i < splinePointsLength; i ++ ) {
+					splineNodePositions.push( splineHelperObjects[ i ].position );
+				}
+				var geometry = new THREE.BufferGeometry();
+				geometry.addAttribute( 'position', new THREE.BufferAttribute( new Float32Array( arc_segment * 3 ), 3 ) );
+				var curve = new THREE.CatmullRomCurve3( splineNodePositions );
+				
+				curve.curveType = 'catmullrom';
+				curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
+					color: 0xff0000,
+					opacity: 0.35,
+					linewidth: 2
+					} ) );
+				curve.tension = 0;
+				curve.mesh.castShadow = true;
+				splines.uniform = curve;
+
+				for ( var k in splines ) {
+					var spline = splines[ k ];
+					scene.add( spline.mesh );
+				}
+				load( [ new THREE.Vector3( 289.76843686945404, 452.51481137238443, 56.10018915737797 ),
+						new THREE.Vector3( -53.56300074753207, 171.49711742836848, -14.495472686253045 ),
+						new THREE.Vector3( -91.40118730204415, 176.4306956436485, -6.958271935582161 ),
+						new THREE.Vector3( -383.785318791128, 491.1365363371675, 47.869296953772746 ) ] );
+			}
+			//**********************
+
+			function animate() {
+				requestAnimationFrame( animate );
+				render();
+				transformControl.update();
+			}
+			function render() {
+				renderer.render( scene, camera );
+			}
+
+			initBackground();
+			initControl();
+			initCurve();
+			animate();
+		</script>
+
+	</body>
+</html>

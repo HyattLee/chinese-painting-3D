@@ -6,6 +6,7 @@
 <link rel='stylesheet' href='/static/bootstrap/css/bootstrap.css'>
 <script src="/static/jquery/1.11.3/jquery.min.js"></script>
 <script src="/static/bootstrap/js/bootstrap.js"></script>
+<script src="/static/utilitiesjs/addFormatMethodToStringClass.js"></script>
 </head>
 <body>
   <div id="sketch" style="position:absolute; z-index:2;">
@@ -37,32 +38,6 @@
   </div>
 </body>
 <script>
-        //first of all, we add format method to String for the utility
-        if(String.prototype.format)
-            console.warn("Overriding existing (String.prototype.format.");
-        String.prototype.format = function(args) {
-            var result = this;
-            if (arguments.length > 0) {
-                if (arguments.length == 1 && typeof (args) == "object") {
-                    for (var key in args) {
-                        if(args[key]!=undefined){
-                            var reg = new RegExp("({" + key + "})", "g");
-                            result = result.replace(reg, args[key]);
-                        }
-                    }
-                } else {
-                    for (var i = 0; i < arguments.length; i++) {
-                        if (arguments[i] != undefined) {
-                            var reg= new RegExp("({)" + i + "(})", "g");
-                            result = result.replace(reg, arguments[i]);
-                        }
-                    }
-                }
-            }
-            return result;
-        }
-
-
         //set global variables
         var pixelList = new Array();
         var currentStrokeStyle = '#000000';

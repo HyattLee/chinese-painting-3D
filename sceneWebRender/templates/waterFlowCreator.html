@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>    
+		<meta charset="UTF-8">    
+		<title>Chinese Painting</title>
+		<style>
+			#info {
+				position: absolute;
+				width: 100%;
+				text-align: center;
+				padding: 5px;
+			}
+			a { color: black; }
+		</style>
+	</head>
+	<body>
+		<script src="/static/threejs/three.js"></script>
+		<script src="/static/jquery/2.0.0/jquery.min.js"></script>
+		<script src="/static/threejs/DragControls.js"></script>
+		<script src="/static/threejs/OrbitControls.js"></script>
+		<script src="/static/threejs/TransformControls.js"></script>
+		<script src="/static/threejs/Detector.js"></script>
+		<script src="/static/threejs/stats.min.js"></script>
+		<script src='/static/threejs/dat.gui.min.js'></script>
+		<script src="/static/threejs/OBJLoader.js"></script>
+		<script src="/static/threejs/ShaderTerrain.js"></script>
+		<script src="/static/threejs/SkyShader.js"></script>
+
+	    <script src="/static/SPH-Fluid-WebGL/js/sph_fluid.js"></script>
+	    <script src="/static/utilitiesjs/addFormatMethodToStringClass.js"></script>
+
+	    <link rel='stylesheet' href='/static/bootstrap/css/bootstrap.css'>
+		<script src="/static/bootstrap/js/bootstrap.js"></script>
+
+		<canvas id="heightMapCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
+		<div id="informationDisplay" style="z-index:2;"></div>
+		<div id="renderView" style="position:absolute; z-index:1;"></div>
+
+		<script> 
+			//main function
+			function getInputConfig() {
+				var mapSize = parseInt(document.getElementById('mapSize').value);
+				var files = document.getElementById('heightMapFile').files;
+				SIZE_PARTICLE_R = parseInt(document.getElementById('particleR').value);
+
+				if (mapSize!=null && SIZE_PARTICLE_R!=null && files.length!=0) {
+					if (files.length) {
+						var reader = new FileReader();
+						reader.readAsDataURL(files[0]);
+						reader.onload = function(evt){ 
+							var fileData = evt.target.result;
+							var image = new Image();
+							image.src= fileData;
+							image.onload=function(){
+								var canvas = document.getElementById("heightMapCanvas");
+								var scale = Math.sqrt(mapSize/(image.width*image.height));
+								console.warn("imageScale:", scale);
+								canvas.width = Math.round(image.width * scale);
+	          					canvas.height = Math.round(image.height * scale);
+								var cxt = canvas.getContext("2d");
+								cxt.scale(scale, scale);
+								cxt.drawImage(image,0,0);
+								var heightMapData = canvas.toDataURL();
+
+								cleanInfoDisplay();
+								createSPHVisInfoDisplay();
+
+								createView();
+								initSceneAndCamera();
+								initLight();
+								initCurve();
+
+								var tex = THREE.ImageUtils.loadTexture(heightMapData, THREE.UVMapping, function() {
+
+									var terrain = buildTerrain( tex, SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
+									terrain.position.set( 0, 0, 0 );
+									terrain.rotation.x = - Math.PI / 2;
+									terrain.scale.set( 1, 1, 1 );
+									paramForInitWaterFlow = [SIZE_GROUND_WIDTH, SIZE_GROUND_WIDTH*tex.image.height/tex.image.width];
+									terrain.receiveShadow = true;
+									terrain.castShadow = true;
+									terrain.name = "terrain";
+									scene.add( terrain );
+									fluid = new SPHFluid(terrainForWaterCompute, SIZE_PARTICLE_R);
+									animate();
+								} );
+							};
+						}
+					}
+				} else {
+					createNotificationDom("缺少必要的配置，请重新输入！", "warning");
+				}
+			}
+
+			var countInd = 1;
+			$(document).keydown(function(event){
+			    if(event.keyCode==27) { //ESC
+			    	var tmpA = splines['uniform']['points'][0];
+			    	var tmpB = splines['uniform']['points'][1];
+			    	var pointA = [tmpA.x,tmpA.y,tmpA.z];
+			    	var pointB = [tmpB.x,tmpB.y,tmpB.z];
+			    	var vecAB = [tmpB.x-tmpA.x, tmpB.y-tmpA.y, tmpB.z-tmpA.z]; //A->B
+			    	var vecOZ = [0,1,0]; //O->Z
+			    	var v = [vecAB[1]*vecOZ[2]-vecOZ[1]*vecAB[2], vecAB[2]*vecOZ[0]-vecOZ[2]-vecAB[0], vecAB[0]*vecOZ[1]-vecOZ[0]*vecAB[1]];
+			    	var tmpID = fluid.addParticles(pointA, pointB, v, countInd*50);
+					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
+					hasSPH = true;
+					countInd = countInd + 1;
+			    }
+			});
+
+			$(document).keydown(function(event){
+			    if(event.keyCode==13) { //ENTER
+			    	removeParticleGraphics();
+			    	fluid = new SPHFluid(terrainForWaterCompute, SIZE_PARTICLE_R);
+			    	updateParticleCountIndicator()
+			    	countInd = 0;
+
+					$.ajax({
+					  type: 'POST',
+					  url: "/parseFlowMap",
+					  data: JSON.stringify(fluid.flowmapXZ), 
+					  dataType: "json" 
+					});
+			    }
+			});
+		</script>
+
+		<script>
+			//Support for WebGL Rendering
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+			//config
+			SIZE_GROUND_WIDTH = 100;
+			SIZE_PARTICLE_R = 3;
+			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
+			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
+			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
+			//
+
+			//variable
+			var container, stats;
+			var camera, scene, renderer;
+			var controls;
+			var sky, water, sunSphere, sunLight, pointLight, ambientLight;
+			var fluid;
+			var hasSPH = false;
+
+			//
+			var terrainForWaterCompute = new Object();
+			terrainForWaterCompute['BOUND'] = new Object();
+			terrainForWaterCompute['POS'] = new Object();
+
+			//**********************
+			var controls, transformControl, dragcontrols;
+			var splineHelperObjects = []
+			var splineOutline;
+			var splinePointsLength = 2;
+			var splineNodePositions = [];
+
+			var arc_segment = 200;
+			var splines = {};
+
+			var hiding;
+			function delayHideTransform() {
+				cancelHideTransorm();
+				hideTransform();
+			}
+			function hideTransform() {
+				hiding = setTimeout( function() {
+					transformControl.detach( transformControl.object );
+				}, 2500 )
+			}
+			function cancelHideTransorm() {
+				if ( hiding ) clearTimeout( hiding );
+			}
+
+			function addSplineObject( position, i ) {
+				var boxSize = SIZE_PARTICLE_R*2
+				var geometry = new THREE.BoxBufferGeometry( boxSize, boxSize, boxSize );
+				var boxColor = 0xFFFFFF;
+				if (i%2==0) {
+					boxColor = 0xFF0000;
+				} else if (i%2==1) {
+					boxColor = 0x0000FF;
+				}
+				var material = new THREE.MeshLambertMaterial( { color: boxColor } );
+				var object = new THREE.Mesh( geometry, material );
+
+				if ( position ) {
+					object.position.copy( position );
+				} else {
+					object.position.y = 0;
+					if (i%4==0) {
+						object.position.x = -SIZE_GROUND_WIDTH*0.5;
+						object.position.z = -SIZE_GROUND_WIDTH*0.5;
+
+					} else if (i%4==1) {
+						object.position.x = SIZE_GROUND_WIDTH*0.5;
+						object.position.z = -SIZE_GROUND_WIDTH*0.5;
+
+					} else if (i%4==2) {
+						object.position.x = -SIZE_GROUND_WIDTH*0.5;
+						object.position.z = SIZE_GROUND_WIDTH*0.5;
+
+					} else if (i%4==3) {
+						object.position.x = SIZE_GROUND_WIDTH*0.5;
+						object.position.z = SIZE_GROUND_WIDTH*0.5;
+
+					}
+				}
+				object.castShadow = true;
+				object.receiveShadow = true;
+				scene.add( object );
+				splineHelperObjects.push( object );
+				return object;
+			}
+
+			function updateSplineOutline() {
+				var point = new THREE.Vector3();
+				for ( var k in splines ) {
+					var spline = splines[ k ];
+					var splineMesh = spline.mesh;
+					var position = splineMesh.geometry.attributes.position;
+					for ( var i = 0; i < arc_segment; i ++ ) {
+						var t = i /  ( arc_segment - 1 );
+						spline.getPoint( t, point );
+						position.setXYZ( i, point.x, point.y, point.z );
+					}
+					position.needsUpdate = true;
+				}
+			}
+
+			function initCurve() {
+				for ( var i = 0; i < splinePointsLength; i ++ ) {
+					addSplineObject( splineNodePositions[ i ], i );
+				}
+				splineNodePositions = [];
+				for ( var i = 0; i < splinePointsLength; i ++ ) {
+					splineNodePositions.push( splineHelperObjects[ i ].position );
+				}
+				var geometry = new THREE.BufferGeometry();
+				geometry.addAttribute( 'position', new THREE.BufferAttribute( new Float32Array( arc_segment * 3 ), 3 ) );
+				var curve = new THREE.CatmullRomCurve3( splineNodePositions );
+				
+				curve.curveType = 'catmullrom';
+				curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
+					color: 0xff0000,
+					opacity: 1,
+					linewidth: 2
+					} ) );
+				curve.tension = 0;
+				curve.mesh.castShadow = true;
+				splines.uniform = curve;
+
+				for ( var k in splines ) {
+					var spline = splines[ k ];
+					scene.add( spline.mesh );
+				}
+				updateSplineOutline();
+			}
+			//**********************
+
+			function createView() {
+				container = document.createElement( 'div' );
+				document.getElementById("renderView").appendChild( container );
+				renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+				renderer.shadowMap.enabled = true;
+				renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+				renderer.gammaInput = true;
+				renderer.gammaOutput = true;
+				renderer.setPixelRatio( window.devicePixelRatio );
+				window.addEventListener( 'resize', onWindowResize, false );
+			}
+
+			function initSceneAndCamera() {
+				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000000 );
+				camera.position.set( 0, SIZE_GROUND_WIDTH/2, SIZE_GROUND_WIDTH );
+				scene = new THREE.Scene();
+				// Controls
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.damping = 0.2;
+				controls.addEventListener( 'change', render );
+				controls.addEventListener( 'start', function() {
+					cancelHideTransorm();
+				} );
+				controls.addEventListener( 'end', function() {
+					delayHideTransform();
+				} );
+
+				transformControl = new THREE.TransformControls( camera, renderer.domElement );
+				transformControl.addEventListener( 'change', render );
+				scene.add( transformControl );
+				// Hiding transform situation is a little in a mess :()
+				transformControl.addEventListener( 'change', function( e ) {
+					cancelHideTransorm();
+				} );
+				transformControl.addEventListener( 'mouseDown', function( e ) {
+					cancelHideTransorm();
+				} );
+				transformControl.addEventListener( 'mouseUp', function( e ) {
+					delayHideTransform();
+				} );
+				transformControl.addEventListener( 'objectChange', function( e ) {
+					updateSplineOutline();
+				} );
+
+				dragcontrols = new THREE.DragControls( splineHelperObjects, camera, renderer.domElement ); //
+				dragcontrols.enabled = false;
+				dragcontrols.addEventListener( 'hoveron', function ( event ) {
+					transformControl.attach( event.object );
+					cancelHideTransorm();
+				} );
+				dragcontrols.addEventListener( 'hoveroff', function ( event ) {
+					delayHideTransform();
+				} );
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+			}
+
+			function initLight() {
+				scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
+				var light = new THREE.SpotLight( 0xffffff, 1.5 );
+				light.position.set( 0, 1500, 200 );
+				scene.add( light );
+			}
+
+			function buildTerrain(tex, mountainSize, groundSize) {
+			    var material = new THREE.MeshLambertMaterial({
+			        color: 0x000000
+			    });
+			    var geometry = new THREE.PlaneGeometry(tex.image.width, tex.image.height, tex.image.width-1, tex.image.height-1);
+			    var pixelList = getImageData( tex.image ).data;
+			    for (var i = 0, l = geometry.vertices.length; i < l; i++) {
+			        geometry.vertices[i].z = (pixelList[i*4]+pixelList[i*4+1]+pixelList[i*4+2])/3;
+			    }
+
+			    geometry.scale(groundSize/tex.image.width, groundSize/tex.image.width, mountainSize/255);
+
+			    geometry.computeFaceNormals();
+			    geometry.computeVertexNormals();
+
+			    var testcount = 0;
+			    
+			    var terrainForWaterComputeTmp = new Object();
+
+			    var max_x = -1;
+			    var min_x = 99999999999;
+			    var max_y = -1;
+			    var min_y = 99999999999;
+			    var max_z = -1;
+			    var min_z = 99999999999;
+
+			    for (var i=0; i<geometry.faces.length; i++) {
+					pos_a_x = Math.round(geometry.vertices[geometry.faces[i]['a']]['x']);
+					pos_a_y = Math.round(geometry.vertices[geometry.faces[i]['a']]['z']);
+					pos_a_z = Math.round(-geometry.vertices[geometry.faces[i]['a']]['y']);
+
+					pos_b_x = Math.round(geometry.vertices[geometry.faces[i]['b']]['x']);
+					pos_b_y = Math.round(geometry.vertices[geometry.faces[i]['b']]['z']);
+					pos_b_z = Math.round(-geometry.vertices[geometry.faces[i]['b']]['y']);
+
+					pos_c_x = Math.round(geometry.vertices[geometry.faces[i]['c']]['x']);
+					pos_c_y = Math.round(geometry.vertices[geometry.faces[i]['c']]['z']);
+					pos_c_z = Math.round(-geometry.vertices[geometry.faces[i]['c']]['y']);
+
+					if (pos_a_x>max_x) {
+			    		max_x = pos_a_x;
+			    	}
+			    	if (pos_a_x<min_x) {
+			    		min_x = pos_a_x;
+			    	}
+			    	if (pos_a_y>max_y) {
+			    		max_y = pos_a_y;
+			    	}
+			    	if (pos_a_y<min_y) {
+			    		min_y = pos_a_y;
+			    	}
+			    	if (pos_a_z>max_z) {
+			    		max_z = pos_a_z;
+			    	}
+			    	if (pos_a_z<min_z) {
+			    		min_z = pos_a_z;
+			    	}
+
+			    	if (pos_b_x>max_x) {
+			    		max_x = pos_b_x;
+			    	}
+			    	if (pos_b_x<min_x) {
+			    		min_x = pos_b_x;
+			    	}
+			    	if (pos_b_y>max_y) {
+			    		max_y = pos_b_y;
+			    	}
+			    	if (pos_b_y<min_y) {
+			    		min_y = pos_b_y;
+			    	}
+			    	if (pos_b_z>max_z) {
+			    		max_z = pos_b_z;
+			    	}
+			    	if (pos_b_z<min_z) {
+			    		min_z = pos_b_z;
+			    	}
+
+			    	if (pos_c_x>max_x) {
+			    		max_x = pos_c_x;
+			    	}
+			    	if (pos_c_x<min_x) {
+			    		min_x = pos_c_x;
+			    	}
+			    	if (pos_c_y>max_y) {
+			    		max_y = pos_c_y;
+			    	}
+			    	if (pos_c_y<min_y) {
+			    		min_y = pos_c_y;
+			    	}
+			    	if (pos_c_z>max_z) {
+			    		max_z = pos_c_z;
+			    	}
+			    	if (pos_c_z<min_z) {
+			    		min_z = pos_c_z;
+			    	}
+
+
+					dir_x = geometry.faces[i]['normal']['x'];
+					dir_y = geometry.faces[i]['normal']['z'];
+					dir_z = -geometry.faces[i]['normal']['y'];
+
+					//addTestPosIndicator(pos_a_x,pos_a_y,pos_a_z);
+					//addTestDirectionIndicator(pos_a_x,pos_a_y,pos_a_z, dir_x,dir_y,dir_z);
+					var id = pos_a_x.toString()+'/'+pos_a_z.toString();
+					if (terrainForWaterComputeTmp[id]==undefined) {
+						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_a_y, [pos_a_x, pos_a_y, pos_a_z]]];
+					} else {
+						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_a_y, [pos_a_x, pos_a_y, pos_a_z]]);
+					}
+
+					//addTestPosIndicator(pos_b_x,pos_b_y,pos_b_z);
+					//addTestDirectionIndicator(pos_b_x,pos_b_y,pos_b_z, dir_x,dir_y,dir_z);
+					var id = pos_b_x.toString()+'/'+pos_b_z.toString();
+					if (terrainForWaterComputeTmp[id]==undefined) {
+						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_b_y, [pos_b_x, pos_b_y, pos_b_z]]];
+					} else {
+						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_b_y, [pos_b_x, pos_b_y, pos_b_z]]);
+					}
+
+					//addTestPosIndicator(pos_c_x,pos_c_y,pos_c_z);
+					//addTestDirectionIndicator(pos_c_x,pos_c_y,pos_c_z, dir_x,dir_y,dir_z);
+					var id = pos_c_x.toString()+'/'+pos_c_z.toString();
+					if (terrainForWaterComputeTmp[id]==undefined) {
+						terrainForWaterComputeTmp[id] = [[[dir_x, dir_y, dir_z], pos_c_y, [pos_c_x, pos_c_y, pos_c_z]]];
+					} else {
+						terrainForWaterComputeTmp[id].push([[dir_x, dir_y, dir_z], pos_c_y, [pos_c_x, pos_c_y, pos_c_z]]);
+					}
+			    }
+
+
+			    for (var key in terrainForWaterComputeTmp) {
+			    	var tmp = terrainForWaterComputeTmp[key];
+			    	var s_dir_x = 0;
+			    	var s_dir_y = 0;
+			    	var s_dir_z = 0;
+			    	for (var i=0; i<tmp.length; i++) {
+			    		s_dir_x = s_dir_x + tmp[i][0][0];
+			    		s_dir_y = s_dir_y + tmp[i][0][1];
+			    		s_dir_z = s_dir_z + tmp[i][0][2];
+			    	}
+			    	terrainForWaterCompute['POS'][key] = [[s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length], tmp[0][1]];
+
+			    	//addTestPosIndicator(tmp[0][2][0],tmp[0][2][1],tmp[0][2][2]);
+					//addTestDirectionIndicator(tmp[0][2][0],tmp[0][2][1],tmp[0][2][2], s_dir_x/tmp.length, s_dir_y/tmp.length, s_dir_z/tmp.length);
+
+			    }
+
+			    var cache = null;
+			    for (var x=min_x; x<max_x+1; x++) {
+			    	for (var z=min_z; z<max_z+1; z++) {
+			    		var id = x.toString() + '/' + z.toString();
+			    		if (terrainForWaterCompute['POS'][id]==null) {
+			    			terrainForWaterCompute['POS'][id] = cache;
+			    		} else {
+			    			cache = terrainForWaterCompute['POS'][id];
+			    		}
+			    	}
+			    }
+
+			    terrainForWaterCompute['BOUND'] = [Math.round(groundSize), Math.round(groundSize*tex.image.height/tex.image.width)];
+			    return new THREE.Mesh(geometry, material);
+			}
+
+			var meshes = [];
+			function addParticleGraphics(fromID, toID, color) {
+				var geometry = new THREE.SphereGeometry( fluid.PARTICLE_RADIUS, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( color );
+			    for (var i=fromID; i<toID+1; i++) {
+				  	var sphere = new THREE.Mesh( geometry, material );
+				  	var position = fluid.particlePositions[i];
+				  	sphere.position.set(position.x, position.y, position.z);
+				  	sphere.name = "sphere"+i.toString();
+				  	meshes.push(sphere);
+				  	scene.add(sphere);
+			    }
+			}
+
+			function removeParticleGraphics() {
+				var delList = []
+				for (var i=0; i<scene.children.length; i++) {
+					if (scene.children[i].name.indexOf("sphere")!=-1) {
+						delList.push(scene.getObjectByName(scene.children[i].name));
+					}
+				}
+				for (var i=0; i<delList.length; i++) {
+					scene.remove( delList[i] );
+				}
+				meshes = [];
+
+    			hasSPH = false;
+			}
+
+			function updateFluidParticle() {
+				fluid.calculateAcceleration();
+	    		fluid.idle();
+	    		if (meshes.length!=0) {
+		    		for (var i = 0; i < fluid.particlePositions.length; i++) {
+				      	meshes[i].position.set(fluid.particlePositions[i].x, fluid.particlePositions[i].y, fluid.particlePositions[i].z);
+				    }
+				}
+			}
+
+			function onWindowResize( event ) {
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				controls.handleResize();
+			}
+
+			function animate() {
+				requestAnimationFrame( animate );
+				stats.begin();
+				render();
+				stats.end();
+				transformControl.update();
+			}
+
+			function render() {
+				if (hasSPH) {
+					updateParticleCountIndicator();
+					updateFluidParticle();
+				}
+				renderer.render( scene, camera );
+			}
+
+
+			function getImageData( image ) {
+			    var canvas = document.createElement( 'canvas' );
+			    canvas.width = image.width;
+			    canvas.height = image.height;
+			    var context = canvas.getContext( '2d' );
+			    context.drawImage( image, 0, 0 );
+			    return context.getImageData( 0, 0, image.width, image.height );
+			}
+		</script>
+		<script>
+			function downloadHeightMap(){ 
+		        var type ='png';
+		        var d = document.getElementById("heightMapCanvas");
+		        var imgdata=d.toDataURL(type);
+		        var fixtype=function(type){
+		            type=type.toLocaleLowerCase().replace(/jpg/i,'jpeg');
+		            var r=type.match(/png|jpeg|bmp|gif/)[0];
+		            return 'image/'+r;
+		        };
+		        imgdata = imgdata.replace(fixtype(type),'image/octet-stream');
+		        var saveFile=function(data,filename)
+		        {
+		            var save_link=document.createElementNS('http://www.w3.org/1999/xhtml', 'a');
+		            save_link.href=data;
+		            save_link.download=filename;
+		            var event=document.createEvent('MouseEvents');
+		            event.initMouseEvent('click',true,false,window,0,0,0,0,0,false,false,false,false,0,null);
+		            save_link.dispatchEvent(event);
+		        };
+		        var filename=''+new Date().getDate()+'.'+type;  
+		        saveFile(imgdata,filename);
+	        };
+
+			function createNotificationDom(text, type) {
+				var panel = document.getElementById("notification");
+				panel.innerHTML = `
+					<div class="alert alert-{1}" role="alert">{0}</div>
+				`.format(text, type);
+			}
+
+			function createInitInfoDisplay() {				
+				document.getElementById("informationDisplay").innerHTML = `
+				<div class="container" id="configPanel">
+					<div class="page-header">
+						  	<h1>流图创建器 参数设置</h1>
+					</div>
+					<div class="row">
+						<div class="col-lg-3">
+							<div id="notification"></div>
+							<form>
+								<div class="form-group">
+									<label for="mapSize">高度图面积S=A*B</label>
+									<input type="number" class="form-control" id="mapSize">
+								</div>
+								<div class="form-group">
+									<label for="particleR">粒子半径</label>
+									<input type="number" class="form-control" id="particleR">
+								</div>
+								<div class="form-group">
+									<input type="file" id="heightMapFile">
+								</div>
+							</form>
+							<button class="btn btn-default" onclick="getInputConfig(this.files);">开始</button>
+						</div>
+					</div>	
+				</div>
+				`
+			}
+
+			function createSPHVisInfoDisplay() {				
+				document.getElementById("informationDisplay").innerHTML = `
+				<div class="container" id="configPanel">
+					<div class="page-header">
+						 <h1>流图创建器 SPH可视化<small>请点击ESC加入粒子<span id="particleCountIndicator" class="badge">4</span></small></h1>
+					</div>
+					<button class="btn btn-default" onclick="downloadHeightMap();">点击我下载当前场景尺寸的高度图</button>
+				</div>
+				`
+			}
+
+			function updateParticleCountIndicator() {
+				document.getElementById("particleCountIndicator").innerHTML = meshes.length;
+			}
+
+			function cleanInfoDisplay() {
+				document.getElementById("informationDisplay").innerHTML = '';
+			}
+		</script>
+		<script>
+			//set up DOM
+			createInitInfoDisplay();
+			createNotificationDom("参数设置", "info");
+		</script>
+	</body>
+</html>
