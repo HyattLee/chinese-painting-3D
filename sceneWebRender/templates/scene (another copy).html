@@ -9,15 +9,27 @@
 				color: #fff;
 				font-family: Monospace;
 				font-size: 13px;
+				text-align: center;
 				font-weight: bold;
 				background-color: #000;
 				margin: 0px;
+				overflow: hidden;
 			}
+			#info {
+				position: absolute;
+				width: 100%;
+				text-align: center;
+				padding: 5px;
+			}
+			a { color: black; }
 		</style>
 	</head>
 	<body>
-		<script src="/static/jquery/2.0.0/jquery.min.js"></script>
+		<div id="info">
+			<a href="#" target="_blank" rel="noopener">Chinese Painting</a>
+		</div>
 		<script src="/static/threejs/three.js"></script>
+		<script src="/static/jquery/2.0.0/jquery.min.js"></script>
 		<script src="/static/threejs/TrackballControls.js"></script>
 		<script src="/static/threejs/Detector.js"></script>
 		<script src="/static/threejs/stats.min.js"></script>
@@ -27,164 +39,18 @@
 		<script src="/static/threejs/SkyShader.js"></script>
 		<script src="/static/threejs/GPUComputationRenderer.js"></script>
 		<script src="/static/threejs/SimplexNoise.js"></script>
+
 		<script src="/static/threejs/Reflector.js"></script>
 		<script src="/static/threejs/Refractor.js"></script>
 		<script src="/static/threejs/Water2.js"></script>
+
+
 		<script src="/static/cloud/CloudShader.js"></script>
         <script src="/static/cloud/Cloud.js"></script>
 
-        <script src="/static/utilitiesjs/addFormatMethodToStringClass.js"></script>
-	    <link rel='stylesheet' href='/static/bootstrap/css/bootstrap.css'>
-		<script src="/static/bootstrap/js/bootstrap.js"></script>
+        <script src="/static/SPH-Fluid-WebGL/js/sph_fluid.js"></script>
 
-		<canvas id="blankCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
-		<div id="informationDisplay" style="z-index:2;"></div>
-		<div id="webGLViewerParent"><div id="renderView" style="position:absolute; z-index:1;"></div></div>
-
-		<script> 
-			//main function
-			function getInputHeightMap() {
-				var files = document.getElementById('heightMapFile').files;
-				console.warn(files.length);
-
-				if (files.length) {
-						var reader = new FileReader();
-						reader.readAsDataURL(files[0]);
-						reader.onload = function(evt){ 
-							var fileData = evt.target.result;
-							var image = new Image();
-							image.src= fileData;
-							image.onload=function(){
-								var heightmapCanvas = document.getElementById("heightMapCanvas");		
-								heightmapCanvas.width = image.width;
-	          					heightmapCanvas.height = image.height;
-
-	          					SIZE_GROUND_WIDTH = image.width;
-	          					SIZE_GROUND_HEIGHT = image.height;
-								SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
-								SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
-								SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
-								SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
-								SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
-								BOUNDS = SIZE_GROUND_WIDTH;
-
-								var ctxHM = heightmapCanvas.getContext("2d");
-								ctxHM.drawImage(image,0,0);
-								var heightMapData = heightmapCanvas.toDataURL();
-
-								var tex = THREE.ImageUtils.loadTexture(heightMapData, THREE.UVMapping, function() {
-									var blankCanvas = document.getElementById("blankCanvas");
-									blankCanvas.width = image.width;
-	          						blankCanvas.height = image.height;
-	          						var ctx = blankCanvas.getContext("2d");
-	          						ctx.fillStyle="#FFFFFF";
-	          						ctx.fillRect(0,0,image.width,image.height);
-	          						var blankData = blankCanvas.toDataURL();
-
-									terrain = buildTerrain( tex, blankData, SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
-									terrain.position.set( 0, 0, 0 );
-									terrain.rotation.x = - Math.PI / 2;
-									terrain.scale.set( 1, 1, 1 );
-									terrain.receiveShadow = true;
-									terrain.castShadow = true;
-									terrain.name = "terrain";
-									createNotificationDom("高度图载入成功", "success");
-								} );
-							};
-						}
-				} else {
-					createNotificationDom("缺少必要的配置，请重新输入！", "warning");
-				}
-			}
-
-			//main function
-			function getInputFlowMap() {
-				var files = document.getElementById('flowMapFile').files;
-
-				if (files.length) {
-						var reader = new FileReader();
-						reader.readAsDataURL(files[0]);
-						reader.onload = function(evt){ 
-							var fileData = evt.target.result;
-							var image = new Image();
-							image.src= fileData;
-							image.onload=function(){
-								var flowmapCanvas = document.getElementById("flowMapCanvas");
-	          					flowmapCanvas.width = image.width
-	          					flowmapCanvas.height = image.height;
-
-								var ctxFM = flowmapCanvas.getContext("2d");
-								ctxFM.drawImage(image,0,0);
-								var flowMapData = flowmapCanvas.toDataURL();
-
-								document.getElementById("flowMapInterface").innerHTML = "";
-								document.getElementById("configPanel").innerHTML = "";
-
-								createView();
-								initSceneAndCamera();
-								initSky();
-								initFog();
-								createGUI();
-								initFlowWater(flowMapData, 0.2, 0.02, 0.025, SIZE_GROUND_WIDTH, SIZE_GROUND_HEIGHT);
-								scene.add( terrain );
-								animate();
-
-							};
-						}
-				} else {
-					createNotificationDom("缺少必要的配置，请重新输入！", "warning");
-				}
-			}
-
-			var resultPresentationFlag = false;
-			var countInd = 1;
-			$(document).keydown(function(event){
-			    if(event.keyCode==27 && !resultPresentationFlag) { //ESC
-			    	var tmpA = splines['uniform']['points'][0];
-			    	var tmpB = splines['uniform']['points'][1];
-			    	var pointA = [tmpA.x,tmpA.y,tmpA.z];
-			    	var pointB = [tmpB.x,tmpB.y,tmpB.z];
-			    	var vecAB = [tmpB.x-tmpA.x, tmpB.y-tmpA.y, tmpB.z-tmpA.z]; //A->B
-			    	var vecOZ = [0,1,0]; //O->Z
-			    	var v = [vecAB[1]*vecOZ[2]-vecOZ[1]*vecAB[2], vecAB[2]*vecOZ[0]-vecOZ[2]-vecAB[0], vecAB[0]*vecOZ[1]-vecOZ[0]*vecAB[1]];
-			    	var tmpID = fluid.addParticles(pointA, pointB, v, countInd*50);
-					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
-					hasSPH = true;
-					countInd = countInd + 1;
-			    }
-			});
-
-			$(document).keydown(function(event){
-			    if(event.keyCode==13) { //ENTER
-			    	removeParticleGraphics();
-			    	updateParticleCountIndicator()
-			    	countInd = 0;
-
-					$.ajax({
-					  	type: 'POST',
-					  	url: "/parseFlowMap",
-					  	data: JSON.stringify(fluid.flowmapXZ), 
-					  	dataType: "json",
-					  	success: function (message) {
-					  		resultPresentationFlag = true;
-					  		removeWebGLView();
-					  		createDownloadFlowMapLink(message['flowmap']);
-			                createResultInfoDisplay();
-			                fluid = new SPHFluid(terrainForWaterCompute, SIZE_PARTICLE_R);
-			                createTimeLogTable(message['time']);
-			                createInputInfoLogTable(message['inputInfoLog']);
-			                backToIndexDom();
-			            },
-			            error: function (message) {
-			              	//createFailedResultInfoDisplay();
-			            }
-					});
-			    }
-			});
-		</script>
-
-
- 		<script id="waternoiseheightmapFragmentShader" type="x-shader/x-fragment">
+        <script id="waternoiseheightmapFragmentShader" type="x-shader/x-fragment">
 			#include <common>
 			uniform float viscosityConstant;
 			#define deltaTime ( 1.0 / 60.0 )
@@ -203,21 +69,23 @@
 				// Dynamics
 				noiseheightmapValue.y += accel;
 				noiseheightmapValue.x += noiseheightmapValue.y * deltaTime;
+
 				gl_FragColor = noiseheightmapValue;
 			}
 		</script>
+
 		<script>
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 			//config
 			SIZE_ELEMENT = 1;
 			SIZE_GROUND_WIDTH = 100;
-			SIZE_HOUSE_HEIGHT = 100/20;
-			SIZE_SUN_DISTANCE = 100*100;
-			SIZE_SHADOW_SCOPE = 100*10;
-			SIZE_MOUNTAIN_HEIGHT = 100/2;
-			BOUNDS = 100;
-			SIZE_WATER_LEVEL = 2;
+			SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
+			SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
+			SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
+			SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
+			SIZE_WATER_LEVEL = 0.1;
 			WIDTH = 128;
+			BOUNDS = SIZE_GROUND_WIDTH;
 			//
 
 			//variable
@@ -226,8 +94,11 @@
 			var waterHeightMap_gpuCompute, simplex;
 			var mesh, geometry;
 			var controls;
-			var sky, water, terrain, sunSphere, sunLight, pointLight, ambientLight;
+			var sky, water, sunSphere, sunLight, pointLight, ambientLight;
 			var clouds = [];
+			var fluid;
+			var hasSPH = false;
+			var hasWaterFlow = false;
 			var heightmapVariable;
 			var gui, shadowCameraHelper, shadowConfig = {
 				shadowCameraVisible: false,
@@ -276,6 +147,7 @@
 				water.name = 'water';
 				scene.add( water );
 				createGPUCompute(sizeX*amplitude*speed, scale);
+				hasWaterFlow = true;
 			}
 
 			function removeFlowWater() {
@@ -569,8 +441,10 @@
 			    }
 
 			    geometry.scale(groundSize/tex.image.width, groundSize/tex.image.width, mountainSize/255);
+
 			    geometry.computeFaceNormals();
 			    geometry.computeVertexNormals();
+			    geometry.computeTangents();
 
 			    var testcount = 0;
 			    
@@ -720,6 +594,24 @@
 			    return new THREE.Mesh(geometry, material);
 			}
 
+			var paramForInitWaterFlow = [0, 0];
+			function initTerrain(heightmapPath, texturePath, mountainSize, groundSize) {
+				var tex = THREE.ImageUtils.loadTexture(heightmapPath, THREE.UVMapping, function() {
+					var terrain = buildTerrain( tex, texturePath, mountainSize, groundSize );
+					terrain.position.set( 0, 0, 0 );
+					terrain.rotation.x = - Math.PI / 2;
+					terrain.scale.set( 1, 1, 1 );
+					paramForInitWaterFlow = [groundSize, groundSize*tex.image.height/tex.image.width];
+					terrain.receiveShadow = true;
+					terrain.castShadow = true;
+					terrain.name = "terrain";
+					scene.add( terrain );
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.002, 0.025*20, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+
+					fluid = new SPHFluid(terrainForWaterCompute);
+				} );
+			}
+
 			function initFog() {
 				//scene.fog = new THREE.Fog( 0, 1000, 10000 );
 				scene.fog = new THREE.FogExp2( 0xffffff, fogConfig.density );
@@ -748,7 +640,7 @@
 
 			function createView() {
 				container = document.createElement( 'div' );
-				document.getElementById('renderView').appendChild( container );
+				document.body.appendChild( container );
 				renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
@@ -763,6 +655,44 @@
 
 			function placeObjects() {
 				//createObject([-100, -50], 450, "/static/obj/1.obj", "/static/texture/1.png", SIZE_HOUSE_HEIGHT/4);
+			}
+
+			var meshes = [];
+			function addParticleGraphics(fromID, toID, color) {
+				var geometry = new THREE.SphereGeometry( fluid.PARTICLE_RADIUS, 32, 32 );
+				var material = new THREE.MeshBasicMaterial( color );
+			    for (var i=fromID; i<toID+1; i++) {
+				  	var sphere = new THREE.Mesh( geometry, material );
+				  	var position = fluid.particlePositions[i];
+				  	sphere.position.set(position.x, position.y, position.z);
+				  	sphere.name = "sphere"+i.toString();
+				  	meshes.push(sphere);
+				  	scene.add(sphere);
+			    }
+			}
+
+			function removeParticleGraphics() {
+				var delList = []
+				for (var i=0; i<scene.children.length; i++) {
+					if (scene.children[i].name.indexOf("sphere")!=-1) {
+						delList.push(scene.getObjectByName(scene.children[i].name));
+					}
+				}
+				for (var i=0; i<delList.length; i++) {
+					scene.remove( delList[i] );
+				}
+				meshes = []
+    			hasSPH = false;
+			}
+
+			function updateFluidParticle() {
+				fluid.calculateAcceleration();
+	    		fluid.idle();
+	    		if (meshes.length!=0) {
+		    		for (var i = 0; i < fluid.particlePositions.length; i++) {
+				      	meshes[i].position.set(fluid.particlePositions[i].x, fluid.particlePositions[i].y, fluid.particlePositions[i].z);
+				    }
+				}
 			}
 
 			function onWindowResize( event ) {
@@ -786,10 +716,29 @@
 				}*/
 
 				controls.update();
-				updateFlowWater();
 
+				if (hasWaterFlow) {
+					updateFlowWater();
+				}
+
+				if (hasSPH) {
+					updateFluidParticle();
+				}
 				renderer.render( scene, camera );
 			}
+
+			var countInd = 1;
+			$(document).keydown(function(event){
+			    if(event.keyCode==27) { //ESC
+			    	removeFlowWater()
+
+			    	var tmpID = fluid.addParticles([-47, 0, -50], [-38, 0, -50], [0, 0, 1], countInd*50);
+					addParticleGraphics(tmpID[0], tmpID[1], {color:0xFF0000, transparent:true, opacity:0.5});
+
+					hasSPH = true;
+					countInd = countInd + 1;
+			    }
+			});
 
 			function getListFromFlowMap(flowMapXZ) {
 				var tmp = '[';
@@ -802,7 +751,21 @@
 				tmp = tmp + ']';
 				return tmp;
 			}
-/*
+
+			$(document).keydown(function(event){
+			    if(event.keyCode==13) { //ENTER
+			    	removeParticleGraphics();
+					$.ajax({
+					  type: 'POST',
+					  url: "/parseFlowMap",
+					  data: JSON.stringify(fluid.flowmapXZ), 
+					  dataType: "json" 
+					});
+					initFlowWater('/static/texture/Water_1_M_Flow.jpg', 0.1, 0.01, 0.025*5, paramForInitWaterFlow[0], paramForInitWaterFlow[1]);
+
+			    }
+			});
+
 			createView();
 			initSceneAndCamera();
 			//initCloud();
@@ -813,52 +776,7 @@
 
 			createGUI();
 			//placeObjects();
-			animate();*/
-		</script>
-
-
-		<script>
-			function createInitInfoDisplay() {
-				document.getElementById("informationDisplay").innerHTML = `
-				<div class="container" id="configPanel">
-					<div class="page-header">
-						  	<h1>场景渲染器 参数设置</h1>
-					</div>
-					<div class="row">
-						<div id="notification"></div>
-						<div id="heightMapInterface" class="col-lg-3">
-							<form>
-								<div class="form-group">
-									<input type="file" id="heightMapFile">
-								</div>
-							</form>
-							<button class="btn btn-default" onclick="getInputHeightMap(this.files);">载入高度图</button>
-							<canvas id="heightMapCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
-						</div>
-						<div id="flowMapInterface" class="col-lg-3">
-							<form>
-								<div class="form-group">
-									<input type="file" id="flowMapFile">
-								</div>
-							</form>
-							<button class="btn btn-default" onclick="getInputFlowMap(this.files);">载入流图</button>
-							<canvas id="flowMapCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
-						</div>
-					</div>	
-				</div>
-				`;
-			}
-			function createNotificationDom(text, type) {
-				var panel = document.getElementById("notification");
-				panel.innerHTML = `
-					<div class="alert alert-{1}" role="alert">{0}</div>
-				`.format(text, type);
-			}
-		</script>
-		<script>
-			//set up DOM
-			createInitInfoDisplay();
-			createNotificationDom("参数设置", "info");
+			animate();
 		</script>
 	</body>
 </html>

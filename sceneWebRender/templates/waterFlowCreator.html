@@ -4,13 +4,14 @@
 		<meta charset="UTF-8">    
 		<title>Chinese Painting</title>
 		<style>
-			#info {
-				position: absolute;
-				width: 100%;
-				text-align: center;
-				padding: 5px;
+			body {
+				color: #fff;
+				font-family: Monospace;
+				font-size: 13px;
+				font-weight: bold;
+				background-color: #000;
+				margin: 0px;
 			}
-			a { color: black; }
 		</style>
 	</head>
 	<body>
@@ -28,12 +29,12 @@
 
 	    <script src="/static/SPH-Fluid-WebGL/js/sph_fluid.js"></script>
 	    <script src="/static/utilitiesjs/addFormatMethodToStringClass.js"></script>
-
 	    <link rel='stylesheet' href='/static/bootstrap/css/bootstrap.css'>
 		<script src="/static/bootstrap/js/bootstrap.js"></script>
 
 		<canvas id="heightMapCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
 		<canvas id="flowMapCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
+		<canvas id="blankCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
 		<div id="informationDisplay" style="z-index:2;"></div>
 		<div id="webGLViewerParent"><div id="renderView" style="position:absolute; z-index:1;"></div></div>
 
@@ -62,6 +63,8 @@
 	          					SIZE_GROUND_WIDTH = canvas.width;
 	          					SIZE_GROUND_HEIGHT = canvas.height;
 								SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
+								SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
+								SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
 
 								var cxt = canvas.getContext("2d");
 								cxt.scale(scale, scale);
@@ -73,11 +76,19 @@
 
 								createView();
 								initSceneAndCamera();
-								initLight();
+								initSky();
 								initCurve();
 
 								var tex = THREE.ImageUtils.loadTexture(heightMapData, THREE.UVMapping, function() {
-									var terrain = buildTerrain( tex, SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
+									var blankCanvas = document.getElementById("blankCanvas");
+									blankCanvas.width = image.width;
+	          						blankCanvas.height = image.height;
+	          						var ctx = blankCanvas.getContext("2d");
+	          						ctx.fillStyle="#FFFFFF";
+	          						ctx.fillRect(0,0,image.width,image.height);
+	          						var blankData = blankCanvas.toDataURL();
+
+									var terrain = buildTerrain( tex, blankData, SIZE_MOUNTAIN_HEIGHT, SIZE_GROUND_WIDTH);
 									terrain.position.set( 0, 0, 0 );
 									terrain.rotation.x = - Math.PI / 2;
 									terrain.scale.set( 1, 1, 1 );
@@ -152,6 +163,8 @@
 			SIZE_GROUND_HEIGHT = 100;
 			SIZE_PARTICLE_R = 3;
 			SIZE_MOUNTAIN_HEIGHT = 100/2;
+			SIZE_SHADOW_SCOPE = 100*10;
+			SIZE_SUN_DISTANCE = 100*100;
 			//
 
 			//variable
@@ -161,6 +174,24 @@
 			var sky, water, sunSphere, sunLight, pointLight, ambientLight;
 			var fluid;
 			var hasSPH = false;
+
+			var gui, shadowCameraHelper, shadowConfig = {
+				shadowCameraVisible: false,
+				shadowCameraNear: 488,
+				shadowCameraFar: SIZE_SHADOW_SCOPE,
+				shadowCameraFov: 15,
+				shadowBias: 0.00332
+			};
+			var skyEffectController  = {
+				turbidity: 6.5,
+				rayleigh: 0.603,
+				mieCoefficient: 0.009,
+				mieDirectionalG: 0.531,
+				luminance: 0.5,
+				inclination: 0.2283, // elevation / inclination
+				azimuth: 0.0098,//0.1723, // Facing front,
+				sun: true
+			};
 
 			//
 			var terrainForWaterCompute = new Object();
@@ -176,6 +207,7 @@
 
 			var arc_segment = 200;
 			var splines = {};
+
 
 			var hiding;
 			function delayHideTransform() {
@@ -327,16 +359,56 @@
 				container.appendChild( stats.dom );
 			}
 
-			function initLight() {
-				scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
-				var light = new THREE.SpotLight( 0xffffff, 1.5 );
-				light.position.set( 0, 1500, 200 );
-				scene.add( light );
+			function initSky() {
+				sky = new THREE.Sky();
+				scene.add( sky.mesh );
+				sunSphere = new THREE.Mesh(
+					new THREE.SphereBufferGeometry( SIZE_GROUND_WIDTH/3, 16, 8 ),
+					new THREE.MeshBasicMaterial( { color: 0xffffff } )
+				);
+				sunSphere.position.y = - 7*SIZE_GROUND_WIDTH;
+				sunSphere.visible = false;
+				scene.add( sunSphere );	
+
+				ambientLight = new THREE.AmbientLight( 0x000000 );
+				scene.add( ambientLight );
+				sunLight = new THREE.SpotLight( 0xffffff, 0.5, 0, Math.PI/2 );
+				sunLight.castShadow = true;
+				sunLight.shadow = new THREE.LightShadow( new THREE.PerspectiveCamera( shadowConfig.shadowCameraFov, 1, shadowConfig.shadowCameraNear, shadowConfig.shadowCameraFar ) );
+				sunLight.shadow.bias = shadowConfig.shadowBias;
+				scene.add( sunLight );
+				skyUpdated();			
+			}
+			
+			function skyUpdated() {
+				var distance = SIZE_SUN_DISTANCE;
+				var uniforms = sky.uniforms;
+				uniforms.turbidity.value = skyEffectController.turbidity;
+				uniforms.rayleigh.value = skyEffectController.rayleigh;
+				uniforms.luminance.value = skyEffectController.luminance;
+				uniforms.mieCoefficient.value = skyEffectController.mieCoefficient;
+				uniforms.mieDirectionalG.value = skyEffectController.mieDirectionalG;
+
+				var theta = Math.PI * ( skyEffectController.inclination - 0.5 );
+				var phi = 2 * Math.PI * ( skyEffectController.azimuth - 0.5 );
+
+				sunSphere.position.x = -distance * Math.cos( phi );
+				sunSphere.position.y = 8*distance * Math.sin( phi ) * Math.sin( theta );
+				sunSphere.position.z = -distance * Math.sin( phi ) * Math.cos( theta );
+
+				sunLight.position.x = -distance/20 * Math.cos( phi );
+				sunLight.position.y = distance * Math.sin( phi ) * Math.sin( theta );
+				sunLight.position.z = -distance/20 * Math.sin( phi ) * Math.cos( theta );
+				sunLight.intensity = skyEffectController.luminance;
+				ambientLight.intensity = 0.1+Math.abs(skyEffectController.azimuth-0.25);
+
+				sunSphere.visible = skyEffectController.sun;
+				sky.uniforms.sunPosition.value.copy( sunSphere.position );
 			}
 
-			function buildTerrain(tex, mountainSize, groundSize) {
+			function buildTerrain(tex, texturePath, mountainSize, groundSize) {
 			    var material = new THREE.MeshLambertMaterial({
-			        color: 0x000000
+			        map: THREE.ImageUtils.loadTexture(texturePath)
 			    });
 			    var geometry = new THREE.PlaneGeometry(tex.image.width, tex.image.height, tex.image.width-1, tex.image.height-1);
 			    var pixelList = getImageData( tex.image ).data;
@@ -762,7 +834,15 @@
 	        }
 
 			function createFailedResultInfoDisplay() {
-
+				document.getElementById("informationDisplay").innerHTML = `
+				<div class="container" id="configPanel">
+					<div class="page-header">
+						 <h1>流图创建器 SPH可视化<small>请点击ESC加入粒子<span id="particleCountIndicator" class="badge">4</span></small></h1>
+					</div>
+					<button class="btn btn-default" onclick="downloadHeightMap();">点击我下载当前场景尺寸的高度图</button>
+					<p>出错！请检查</p>
+				</div>
+				`
 			}
 
 			function updateParticleCountIndicator() {
