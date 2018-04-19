@@ -4,7 +4,7 @@ import json
 import time
 import handleSketch
 from terrain import creator, texture, createHeightMap
-from water import flowmap
+from water import flowmap, createFlowMap
 
 app = Flask(__name__)
 
@@ -62,14 +62,39 @@ def achieveSketch():
 		"height":data['size']['height'],
 		"total":data['size']['width']*data['size']['height']}
 
-	return jsonify({'time':timeLog, 'inputInfoLog':inputInfoLog, 'heightmap':finalHeightmap})
+	return jsonify({'time':timeLog, 'inputInfoLog':inputInfoLog, 'heightmap':finalHeightmap}), 201
 
 @app.route("/parseFlowMap", methods=['POST'])
 def parseFlowMap():
-	flowmapXZ = request.get_data()
-	print flowmapXZ
-	flowmap.generate(json.loads(flowmapXZ))
-	return jsonify({'success':True}), 201
+	timeLogPrecision = 5 #0.001
+	time_start0 = time.time()
+
+	time_start = time.time()
+	data = json.loads(request.get_data())
+	time_loadData = time.time() - time_start
+
+	time_start = time.time()
+	flowMap = createFlowMap.createFlowMap(data)
+	time_createFlowMap = time.time() - time_start
+
+	time_start = time.time()
+	finalFlowMap = createFlowMap.smoothFlowMap(flowMap, 3)
+	time_smooth = time.time() - time_start
+
+	time_total = time.time()-time_start0
+
+	timeLog = {
+		"total":round(time_total, timeLogPrecision),
+		"loadData":round(time_loadData, timeLogPrecision),
+		"createFlowMap":round(time_createFlowMap, timeLogPrecision),
+		"smooth":round(time_smooth, timeLogPrecision)}
+
+	inputInfoLog = {
+		"width":len(data),
+		"height":len(data[0]),
+		"total":len(data)*len(data[0])}
+
+	return jsonify({'time':timeLog, 'inputInfoLog':inputInfoLog, 'flowmap':finalFlowMap}), 201
 
 
 @app.route("/waterFlowCreator", methods=['GET'])
