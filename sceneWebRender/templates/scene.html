@@ -45,9 +45,8 @@
 			//main function
 			function getInputHeightMap() {
 				var files = document.getElementById('heightMapFile').files;
-				console.warn(files.length);
-
-				if (files.length) {
+				var fineness = Math.min(parseInt(document.getElementById("fineness").value), 1);
+				if (files.length && fineness) {
 						var reader = new FileReader();
 						reader.readAsDataURL(files[0]);
 						reader.onload = function(evt){ 
@@ -55,22 +54,22 @@
 							var image = new Image();
 							image.src= fileData;
 							image.onload=function(){
-								var heightmapCanvas = document.getElementById("heightMapCanvas");		
+								var heightmapCanvas = document.getElementById("heightMapCanvas");	
 								heightmapCanvas.width = image.width;
 	          					heightmapCanvas.height = image.height;
+	          					var ctxHM = heightmapCanvas.getContext("2d");
+								ctxHM.drawImage(image,0,0);
+								var heightMapData = heightmapCanvas.toDataURL();
 
-	          					SIZE_GROUND_WIDTH = image.width;
-	          					SIZE_GROUND_HEIGHT = image.height;
+	          					FINENESS = fineness;
+	          					SIZE_GROUND_WIDTH = Math.round(image.width/FINENESS);
+	          					SIZE_GROUND_HEIGHT = Math.round(image.height/FINENESS);
 								SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
 								SIZE_HOUSE_HEIGHT = SIZE_GROUND_WIDTH/20;
 								SIZE_SUN_DISTANCE = SIZE_GROUND_WIDTH*100;
 								SIZE_SHADOW_SCOPE = SIZE_SUN_DISTANCE*10;
 								SIZE_MOUNTAIN_HEIGHT = SIZE_GROUND_WIDTH/2;
 								BOUNDS = SIZE_GROUND_WIDTH;
-
-								var ctxHM = heightmapCanvas.getContext("2d");
-								ctxHM.drawImage(image,0,0);
-								var heightMapData = heightmapCanvas.toDataURL();
 
 								var tex = THREE.ImageUtils.loadTexture(heightMapData, THREE.UVMapping, function() {
 									var blankCanvas = document.getElementById("blankCanvas");
@@ -822,21 +821,39 @@
 				document.getElementById("informationDisplay").innerHTML = `
 				<div class="container" id="configPanel">
 					<div class="page-header">
-						  	<h1>场景渲染器 参数设置</h1>
+						<h1>场景渲染器 参数设置</h1>
 					</div>
 					<div class="row">
 						<div id="notification"></div>
 						<div id="heightMapInterface" class="col-lg-3">
+							<div class="page-header">
+								<h2>第一步</h2>
+							</div>
 							<form>
 								<div class="form-group">
+									<label for="heightMapFile">高度图文件</label>
+								</div>
+								<div class="form-group">
 									<input type="file" id="heightMapFile">
+								</div>
+								<div class="form-group">
+									<label for="fineness">场景粒度</label>
+								</div>
+								<div class="form-group">
+									<input type="number" id="fineness">
 								</div>
 							</form>
 							<button class="btn btn-default" onclick="getInputHeightMap(this.files);">载入高度图</button>
 							<canvas id="heightMapCanvas" style="display:none; position:absolute; z-index:-1;"></canvas>
 						</div>
 						<div id="flowMapInterface" class="col-lg-3">
+							<div class="page-header">
+								<h2>第二步</h2>
+							</div>
 							<form>
+								<div class="form-group">
+									<label for="flowMapFile">流图文件</label>
+								</div>
 								<div class="form-group">
 									<input type="file" id="flowMapFile">
 								</div>
