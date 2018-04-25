@@ -1,6 +1,6 @@
 # 基本介绍
 ### 环境搭建
-OS: Ubuntu16.04 64bit
+OS: Ubuntu 16.04 64bit
 
 Python 2.7 32bit
 
