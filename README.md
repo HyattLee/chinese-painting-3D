@@ -1,12 +1,15 @@
 # 基本介绍
 ### 环境搭建
 OS: Ubuntu16.04 64bit
+
 Python 2.7 32bit
+
 Flask
+
     sudo pip install flask
 
 ### 应用框架
-该平台的通过Flask Web框架实现；HTML文本在src/templates中；其他前端文件，例如JS等，在src/static中。
+该平台的通过Flask框架实现Web服务；HTML文本在src/templates中；其他前端文件，例如JS等，在src/static中。
 
 ### 运行
 平台运行方法：
