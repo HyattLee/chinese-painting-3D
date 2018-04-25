@@ -4,7 +4,7 @@
 平台运行方法：
 
     cd src
-    sudo python main.py
+    sudo python main.py
     
 在Firefox（不要chrome）中访问ip/实现平台访问（因为设置的端口号是80，所以不用在ip后面加端口号）。
 
