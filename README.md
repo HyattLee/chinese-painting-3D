@@ -1,8 +1,8 @@
-# chinese-painting-3D
 # 中国山水画三维场景构建平台
 该平台的通过Flask Web框架实现
 
-src/main.py
+    cd src
+    python main.py
 ## 构建过程
 ### 创建高度图
 在src/templates/painting实现前端草图交互绘制
