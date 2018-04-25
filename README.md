@@ -8,13 +8,14 @@
     
 在Firefox（不要chrome）中访问ip/实现平台访问（因为设置的端口号是80，所以不用在ip后面加端口号）。
 
-## 场景构建过程
-### 创建高度图
-在src/templates/painting实现前端草图交互绘制
-
-通过在src/main.py中route(“/achieveSketch”)响应函数中调用sketch/handleSketch.py中的function parseTerrainSketch实现地形辅助线解析
-
-通过在src/main.py中route(“/achieveSketch”)响应函数中调用terrain/createHeightMap.py生成高度图，过程分为4步：
+# 场景构建过程
+## 创建高度图
+### 前端草图交实现互绘制
+src/templates/painting
+### 地形辅助线解析
+通过在src/main.py中route(“/achieveSketch”)响应函数中调用sketch/handleSketch.py中的function parseTerrainSketch实现
+### 高度图生成
+通过在src/main.py中route(“/achieveSketch”)响应函数中调用terrain/createHeightMap.py实现，过程分为4步：
 
 1. createMountain 创建山
 
