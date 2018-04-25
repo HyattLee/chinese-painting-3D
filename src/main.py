@@ -1,8 +1,7 @@
 #!flask/bin/python
 from flask import Flask, render_template, jsonify, request
-import json
-import time
-import handleSketch
+import json, time
+from sketch import handleSketch
 from terrain import createHeightMap
 from water import createFlowMap
 
@@ -127,4 +126,4 @@ def drawLineIn3D():
 	return render_template('interactiveDraw3DLine.html'), 201
 
 if __name__ == '__main__':
-	app.run(host='0.0.0.0',port=5000)
+	app.run(host='0.0.0.0',port=80)

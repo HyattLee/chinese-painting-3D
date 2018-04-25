@@ -256,8 +256,8 @@
 			function initFlowWater(flowMap, speed, amplitude, scale, sizeX, sizeY) { //0.02, 0.025*5
 				var waterGeometry = new THREE.PlaneBufferGeometry( sizeX, sizeY, WIDTH - 1, WIDTH - 1 );
 				var flowMap = new THREE.TextureLoader().load( flowMap );
-				var normalMap0 = new THREE.TextureLoader().load( '/static/texture/Water_1_M_Normal.jpg' );
-				var normalMap1 = new THREE.TextureLoader().load( '/static/texture/Water_2_M_Normal.jpg' );
+				var normalMap0 = new THREE.TextureLoader().load( '/static/texture/waterNormalMap.jpg' );
+				var normalMap1 = new THREE.TextureLoader().load( '/static/texture/waterNormalMap.jpg' );
 				water = new THREE.Water( waterGeometry, {
 					scale: 8.0,
 					textureWidth: WIDTH,
