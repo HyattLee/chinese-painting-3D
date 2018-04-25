@@ -1,5 +1,5 @@
 # 中国山水画三维场景构建平台
-该平台的通过Flask Web框架实现；HTML文本在src/templates中；其他例如JS等前端文件在src/static中。
+该平台的通过Flask Web框架实现；HTML文本在src/templates中；其他前端文件，例如JS等，在src/static中。
 
 平台运行方法：
 
@@ -14,9 +14,7 @@
 
 通过在src/main.py中route(“/achieveSketch”)响应函数中调用sketch/handleSketch.py中的function parseTerrainSketch实现地形辅助线解析
 
-通过在src/main.py中route(“/achieveSketch”)响应函数中调用terrain/createHeightMap.py生成高度图
-
-生成高度图的过程分为4步：
+通过在src/main.py中route(“/achieveSketch”)响应函数中调用terrain/createHeightMap.py生成高度图，过程分为4步：
 
 1. createMountain 创建山
 
