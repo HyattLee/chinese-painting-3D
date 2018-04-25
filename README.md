@@ -1,4 +1,4 @@
-# 中国山水画三维场景构建平台
+# 基本介绍
 该平台的通过Flask Web框架实现；HTML文本在src/templates中；其他前端文件，例如JS等，在src/static中。
 
 平台运行方法：
@@ -8,7 +8,7 @@
     
 在Firefox（不要chrome）中访问ip/实现平台访问（因为设置的端口号是80，所以不用在ip后面加端口号）。
 
-# 场景构建过程
+# 场景构建过程实现介绍
 ## 创建高度图
 ### 前端草图交实现互绘制
 src/templates/painting.html
