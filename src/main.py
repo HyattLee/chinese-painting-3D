@@ -26,7 +26,7 @@ def achieveSketch():
 	time_loadData = time.time()-time_start
 
 	time_start = time.time()
-	sceneDesc = handleSketch.parseBackground(data['pixel'], data['size'])
+	sceneDesc = handleSketch.parseTerrainSketch(data['pixel'], data['size'])
 	time_parseSketch = time.time()-time_start
 
 	time_start = time.time()

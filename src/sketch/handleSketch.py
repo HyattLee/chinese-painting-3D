@@ -1,7 +1,7 @@
 import math
 COUNT = 50
 
-def parseBackground(objectList, size):
+def parseTerrainSketch(objectList, size):
 	result = {'mountain':[], 'size':[size['width'],size['height']], 'plane':[]}##
 	for obj in objectList:
 		horizontalReferenceTMP = []
