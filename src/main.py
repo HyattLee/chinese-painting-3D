@@ -3,8 +3,8 @@ from flask import Flask, render_template, jsonify, request
 import json
 import time
 import handleSketch
-from terrain import creator, texture, createHeightMap
-from water import flowmap, createFlowMap
+from terrain import createHeightMap
+from water import createFlowMap
 
 app = Flask(__name__)
 
