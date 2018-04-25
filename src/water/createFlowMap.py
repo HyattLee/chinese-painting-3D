@@ -1,6 +1,6 @@
 from PIL import Image, ImageOps, ImageFilter
 import random, copy
-import numpy, math
+import math
 
 def initZeroMap(size):
 	dataMap = []
