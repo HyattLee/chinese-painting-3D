@@ -7,6 +7,12 @@ Python 2.7 32bit
 Flask
 
     sudo pip install flask
+    
+PIL
+
+    sudo pip install --upgrade pip
+    sudo easy_install pip
+    sudo pip install pillow
 
 ### 应用框架介绍
 该平台的通过Flask框架实现Web服务；HTML文本在src/templates中；其他前端文件，例如JS等，在src/static中。
