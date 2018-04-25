@@ -25,11 +25,19 @@ src/templates/painting.html
 
 4. addNoiseToMap 向高度图的山体部分加入噪声
 
-### 创建流图
-### 前端SPH可视化交互
+## 创建流图
+### 前端SPH数值模拟可视化交互
 src/templates/waterFlowCreator.html
 
-通过src/static/three.js实现SPH可视化绘制
+通过src/static/threejs/*实现SPH可视化绘制
 
 通过src/static/SPH-Fluid-WebGL/js/sph_fluid.js实现SPH粒子受力分析计算
-### 载入场景
+### 流图生成
+通过在src/main.py中route(“/parseFlowMap”)water/createFlowMap.py实现，过程分为2步：
+
+1. createFlowMap 创建流图
+
+2. smoothFlowMap 平滑流图
+
+## 绘制渲染场景
+src/templates/scene.html
