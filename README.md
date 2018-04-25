@@ -11,7 +11,7 @@
 # 场景构建过程
 ## 创建高度图
 ### 前端草图交实现互绘制
-src/templates/painting
+src/templates/painting.html
 ### 地形辅助线解析
 通过在src/main.py中route(“/achieveSketch”)响应函数中调用sketch/handleSketch.py中的function parseTerrainSketch实现
 ### 高度图生成
@@ -26,5 +26,10 @@ src/templates/painting
 4. addNoiseToMap 向高度图的山体部分加入噪声
 
 ### 创建流图
-通过在src/main.py中route(“/achieveSketch”)响应函数中调用sketch/handleSketch.py实现
+### 前端SPH可视化交互
+src/templates/waterFlowCreator.html
+
+通过src/static/three.js实现SPH可视化绘制
+
+通过src/static/SPH-Fluid-WebGL/js/sph_fluid.js实现SPH粒子受力分析计算
 ### 载入场景
